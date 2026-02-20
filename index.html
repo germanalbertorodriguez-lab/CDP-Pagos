@@ -881,6 +881,7 @@ function iniciarApp() {
   if (APP.rol === 'delegado') {
     tabs.innerHTML = `
       <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Mis Comprobantes</button>
+      <button class="nav-tab" onclick="navTo('habilitaciones', this)">🏅 Habilitaciones</button>
       <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
     `;
     renderDelegado();
@@ -889,6 +890,7 @@ function iniciarApp() {
       <button class="nav-tab active" onclick="navTo('panel-admin', this)">📊 Panel</button>
       <button class="nav-tab" onclick="navTo('todos-comprobantes', this)">📋 Comprobantes</button>
       <button class="nav-tab" onclick="navTo('por-equipo', this)">⚽ Por Equipo</button>
+      <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
       <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
     `;
     renderAdmin();
@@ -897,15 +899,19 @@ function iniciarApp() {
 
 function navTo(vista, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   if (vista === 'mis-comprobantes' || vista === 'historial') {
     renderDelegado(vista);
+  } else if (vista === 'habilitaciones') {
+    renderHabilitaciones();
   } else if (vista === 'panel-admin') {
     renderAdmin();
   } else if (vista === 'todos-comprobantes') {
     renderTodosComprobantes();
   } else if (vista === 'por-equipo') {
     renderPorEquipo();
+  } else if (vista === 'jugadores-admin') {
+    renderGestionJugadores();
   } else if (vista === 'planillas') {
     renderPlanillas();
   }
@@ -939,13 +945,25 @@ async function renderDelegado(vista = 'mis-comprobantes') {
 function renderMisComprobantes(cnt) {
   const eq = APP.equipo;
   const jug = APP.jugadores;
-  const comp = APP.comprobantes;
+  const comp = APP.comprobantes.filter(c => c.estado !== 'Reemplazado'); // Ignorar reemplazados
   const mes = APP.mesSeleccionado;
 
-  // Calcular stats del mes
-  const conComprobante  = comp.filter(c => c.mes === mes && c.estado !== 'Rechazado');
-  const aprobados       = comp.filter(c => c.mes === mes && c.estado === 'Aprobado');
-  const rechazados      = comp.filter(c => c.mes === mes && c.estado === 'Rechazado');
+  // Para cada jugador+mes, quedarse con el comprobante más reciente activo
+  function getCompActivo(jugadorId, mes) {
+    const del = comp.filter(c => String(c.jugadorId) == String(jugadorId) && c.mes === mes);
+    if (!del.length) return null;
+    // Prioridad: Aprobado > Pendiente > Rechazado (más reciente)
+    del.sort((a,b) => {
+      const ord = {Aprobado:0,Pendiente:1,Rechazado:2};
+      return (ord[a.estado]||9) - (ord[b.estado]||9) || new Date(b.fecha) - new Date(a.fecha);
+    });
+    return del[0];
+  }
+
+  const compActivos = jug.map(j => getCompActivo(j.id, mes));
+  const aprobados   = compActivos.filter(c => c?.estado === 'Aprobado').length;
+  const pendientes  = compActivos.filter(c => c?.estado === 'Pendiente').length;
+  const rechazados  = compActivos.filter(c => c?.estado === 'Rechazado').length;
 
   cnt.innerHTML = `
     <div class="equipo-header">
@@ -954,9 +972,9 @@ function renderMisComprobantes(cnt) {
         <div class="equipo-cat">${eq.cat || ''}</div>
         <div class="equipo-stats">
           <div class="stat"><div class="stat-num">${jug.length}</div><div class="stat-label">Jugadores</div></div>
-          <div class="stat"><div class="stat-num" style="color:#86efac">${aprobados.length}</div><div class="stat-label">Aprobados</div></div>
-          <div class="stat"><div class="stat-num" style="color:#fde047">${conComprobante.length - aprobados.length}</div><div class="stat-label">Pendientes</div></div>
-          <div class="stat"><div class="stat-num" style="color:#fca5a5">${rechazados.length}</div><div class="stat-label">Rechazados</div></div>
+          <div class="stat"><div class="stat-num" style="color:#86efac">${aprobados}</div><div class="stat-label">Aprobados</div></div>
+          <div class="stat"><div class="stat-num" style="color:#fde047">${pendientes}</div><div class="stat-label">Pendientes</div></div>
+          <div class="stat"><div class="stat-num" style="color:#fca5a5">${rechazados}</div><div class="stat-label">Rechazados</div></div>
         </div>
       </div>
     </div>
@@ -981,7 +999,7 @@ function renderMisComprobantes(cnt) {
           </thead>
           <tbody>
             ${jug.map((j, i) => {
-              const c = comp.find(c => c.jugadorId == j.id && c.mes === mes);
+              const c = getCompActivo(j.id, mes);
               return renderFilaDelegado(i+1, j, c, mes);
             }).join('')}
           </tbody>
@@ -1316,9 +1334,6 @@ async function abrirModalVer(comprobanteId) {
     if (!data.ok) throw new Error(data.msg);
     const c = data.comprobante;
 
-    const esImagen = /\.(jpg|jpeg|png|gif|webp)$/i.test(c.archivo||'');
-    const esPdf    = /\.pdf$/i.test(c.archivo||'');
-
     body.innerHTML = `
       <div class="modal-info">
         <div class="modal-info-row"><span>Jugador</span><span>${c.jugadorNombre}</span></div>
@@ -1330,11 +1345,15 @@ async function abrirModalVer(comprobanteId) {
         ${c.obsUsuario?`<div class="modal-info-row"><span>Obs. Delegado</span><span>${c.obsUsuario}</span></div>`:''}
       </div>
       ${c.urlArchivo
-        ? (esImagen
-          ? `<img src="${c.urlArchivo}" class="comprobante-preview" alt="Comprobante">`
-          : `<a href="${c.urlArchivo}" target="_blank" class="comprobante-pdf-link">📄 Abrir PDF en nueva pestaña</a>`)
+        ? (c.esImagen
+          ? `<img src="${c.urlArchivo}" class="comprobante-preview" alt="Comprobante" style="max-width:100%;border-radius:8px;margin-top:12px;display:block">`
+          : `<iframe src="${c.urlArchivo}" style="width:100%;height:400px;border:none;border-radius:8px;margin-top:12px;display:block" allowfullscreen></iframe>`)
         : '<div class="empty" style="padding:20px">Sin archivo disponible</div>'}`;
 
+    // Botón de descarga si existe
+    if (c.urlDescarga) {
+      body.innerHTML += `<div style="margin-top:8px;text-align:right"><a href="${c.urlDescarga}" target="_blank" style="font-size:0.8rem;color:var(--azul2)">⬇ Descargar</a></div>`;
+    }
     footer.innerHTML = `
       <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver')">Cerrar</button>
       ${APP.rol==='admin' && c.estado!=='Aprobado'
@@ -1509,8 +1528,336 @@ function showToast(msg, tipo = 'info') {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// PLANILLAS
+// HABILITACIONES (pestaña delegado)
 // ══════════════════════════════════════════════════════════════════
+async function renderHabilitaciones() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando habilitaciones...</div>';
+  try {
+    const data = await api('getHabilitaciones', { equipoId: APP.equipo.id });
+    if (!data.ok) throw new Error(data.msg);
+    const { jugadores, mesActual, mesAnterior } = data;
+
+    const habilitados = jugadores.filter(j => j.estado === 'Habilitado').length;
+    const iAdmin      = jugadores.filter(j => j.estado === 'I. Administrativa').length;
+    const iMedica     = jugadores.filter(j => j.estado === 'I. Medica' || j.estado === 'I. Médica').length;
+    const iDeportiva  = jugadores.filter(j => j.estado === 'I. Deportiva').length;
+
+    const estadoColor = {
+      'Habilitado':        { bg:'#dcfce7', color:'#15803d', icono:'✅' },
+      'I. Administrativa': { bg:'#fef9c3', color:'#854d0e', icono:'💰' },
+      'I. Medica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
+      'I. Médica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
+      'I. Deportiva':      { bg:'#ffe4e6', color:'#9f1239', icono:'🚫' },
+    };
+
+    cnt.innerHTML = `
+      <div class="equipo-header">
+        <div>
+          <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
+          <div class="equipo-cat">Ref. mes: <strong>${mesActual}</strong> (también acepta ${mesAnterior})</div>
+          <div class="equipo-stats">
+            <div class="stat"><div class="stat-num" style="color:#86efac">${habilitados}</div><div class="stat-label">Habilitados</div></div>
+            <div class="stat"><div class="stat-num" style="color:#fde047">${iAdmin}</div><div class="stat-label">I. Adm.</div></div>
+            <div class="stat"><div class="stat-num" style="color:#fca5a5">${iMedica}</div><div class="stat-label">I. Méd.</div></div>
+            <div class="stat"><div class="stat-num" style="color:#f9a8d4">${iDeportiva}</div><div class="stat-label">I. Dep.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏅 Habilitaciones del plantel</div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Jugador</th>
+                <th>Estado</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jugadores.map((j,i) => {
+                const est = estadoColor[j.estado] || { bg:'#f3f4f6', color:'#374151', icono:'❓' };
+                const badges = [
+                  j.mas35 ? '<span class="badge-mas35">+35</span>' : '',
+                  j.ic    ? '<span class="badge-ic">IC</span>'    : ''
+                ].join('');
+                return `
+                  <tr>
+                    <td style="color:var(--gris2);font-size:0.75rem;font-family:'JetBrains Mono',monospace">${String(i+1).padStart(2,'0')}</td>
+                    <td>
+                      <div class="jugador-nombre">${j.nombre}</div>
+                      ${badges ? `<div class="jugador-badges">${badges}</div>` : ''}
+                    </td>
+                    <td>
+                      <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:0.78rem;font-weight:600;background:${est.bg};color:${est.color}">
+                        ${est.icono} ${j.estado}
+                      </span>
+                    </td>
+                    <td style="font-size:0.8rem;color:var(--gris3)">${j.detalle || '—'}</td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GESTIÓN DE JUGADORES (admin)
+// ══════════════════════════════════════════════════════════════════
+async function renderGestionJugadores(equipoFiltro = '') {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+  try {
+    const [dataEq, dataJug] = await Promise.all([
+      api('getEquipos'),
+      api('getJugadoresAdmin', equipoFiltro ? { equipoId: equipoFiltro } : {}),
+    ]);
+    if (!dataEq.ok || !dataJug.ok) throw new Error(dataJug.msg || dataEq.msg);
+    const equipos   = dataEq.equipos;
+    const jugadores = dataJug.jugadores;
+
+    // Agrupar por equipo
+    const grupos = {};
+    jugadores.forEach(j => {
+      if (!grupos[j.equipoId]) grupos[j.equipoId] = [];
+      grupos[j.equipoId].push(j);
+    });
+
+    const opEq = equipos.map(e => `<option value="${e.id}" ${e.id===equipoFiltro?'selected':''}>${e.nombre}</option>`).join('');
+
+    cnt.innerHTML = `
+      <div class="card">
+        <div class="card-title">👥 Gestión de Jugadores</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+          <select id="eq-filtro-jug" style="padding:8px 12px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.88rem"
+            onchange="renderGestionJugadores(this.value)">
+            <option value="">Todos los equipos</option>
+            ${opEq}
+          </select>
+          <button class="btn-sm btn-aprobar" onclick="abrirModalAltaJugador()">➕ Alta jugador</button>
+        </div>
+
+        ${Object.keys(grupos).length === 0
+          ? '<div class="empty"><div class="empty-icon">👥</div>No hay jugadores.</div>'
+          : Object.entries(grupos).map(([eqId, jugs]) => {
+              const eq = equipos.find(e => e.id === eqId) || { nombre: eqId };
+              return `
+                <div style="margin-bottom:24px">
+                  <div style="font-weight:700;font-size:0.88rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;padding:6px 0;border-bottom:2px solid var(--gris1)">
+                    ⚽ ${eq.nombre} <span style="color:var(--gris3);font-weight:400;font-size:0.8rem">(${jugs.length} jugadores)</span>
+                  </div>
+                  <div class="tabla-wrapper">
+                    <table>
+                      <thead><tr><th>ID</th><th>Apellido y Nombres</th><th>+35</th><th>IC</th><th>Acciones</th></tr></thead>
+                      <tbody>
+                        ${jugs.map(j => `
+                          <tr>
+                            <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--gris3)">${j.id}</td>
+                            <td class="jugador-nombre">${j.nombre}</td>
+                            <td style="text-align:center">${j.mas35?'<span class="badge-mas35">+35</span>':''}</td>
+                            <td style="text-align:center">${j.ic?'<span class="badge-ic">IC</span>':''}</td>
+                            <td>
+                              <div class="btn-actions">
+                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic})">✏️ Editar</button>
+                                <button class="btn-sm btn-ver" onclick="abrirModalTraspaso('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}')">🔄 Traspasar</button>
+                                <button class="btn-sm btn-rechazar" onclick="confirmarBajaJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">🗑 Baja</button>
+                              </div>
+                            </td>
+                          </tr>`).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>`;
+            }).join('')}
+      </div>
+
+      <!-- Modal Alta Jugador -->
+      <div class="modal-overlay" id="modal-alta-jug" style="display:none">
+        <div class="modal-card" style="max-width:420px">
+          <div class="modal-header">
+            <span class="modal-title">➕ Alta de jugador</span>
+            <button class="modal-close" onclick="cerrarModal('modal-alta-jug')">✕</button>
+          </div>
+          <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <div class="form-group">
+              <label>Equipo</label>
+              <select id="alta-equipo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                <option value="">— Seleccioná —</option>
+                ${opEq}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Apellido y Nombres</label>
+              <input id="alta-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            </div>
+            <div style="display:flex;gap:16px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+                <input type="checkbox" id="alta-mas35"> Mayor de 35
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+                <input type="checkbox" id="alta-ic"> Intercategoría
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-sm btn-ver" onclick="cerrarModal('modal-alta-jug')">Cancelar</button>
+            <button class="btn-sm btn-aprobar" id="btn-alta-jug" onclick="confirmarAltaJugador()">➕ Dar de alta</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Editar Jugador -->
+      <div class="modal-overlay" id="modal-editar-jug" style="display:none">
+        <div class="modal-card" style="max-width:420px">
+          <div class="modal-header">
+            <span class="modal-title">✏️ Editar jugador</span>
+            <button class="modal-close" onclick="cerrarModal('modal-editar-jug')">✕</button>
+          </div>
+          <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <input type="hidden" id="edit-jug-id">
+            <div class="form-group">
+              <label>Apellido y Nombres</label>
+              <input id="edit-jug-nombre" type="text" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            </div>
+            <div style="display:flex;gap:16px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+                <input type="checkbox" id="edit-jug-mas35"> Mayor de 35
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+                <input type="checkbox" id="edit-jug-ic"> Intercategoría
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-sm btn-ver" onclick="cerrarModal('modal-editar-jug')">Cancelar</button>
+            <button class="btn-sm btn-aprobar" onclick="confirmarEditarJugador()">💾 Guardar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Traspaso -->
+      <div class="modal-overlay" id="modal-traspaso" style="display:none">
+        <div class="modal-card" style="max-width:420px">
+          <div class="modal-header">
+            <span class="modal-title">🔄 Traspaso de jugador</span>
+            <button class="modal-close" onclick="cerrarModal('modal-traspaso')">✕</button>
+          </div>
+          <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <input type="hidden" id="trasp-jug-id">
+            <p id="trasp-jug-nombre" style="font-weight:600;color:var(--azul)"></p>
+            <div class="form-group">
+              <label>Equipo destino</label>
+              <select id="trasp-equipo-dest" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                <option value="">— Seleccioná —</option>
+                ${opEq}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-sm btn-ver" onclick="cerrarModal('modal-traspaso')">Cancelar</button>
+            <button class="btn-sm btn-aprobar" onclick="confirmarTraspaso()">🔄 Traspasar</button>
+          </div>
+        </div>
+      </div>`;
+
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+function abrirModalAltaJugador() {
+  document.getElementById('alta-nombre').value = '';
+  document.getElementById('alta-mas35').checked = false;
+  document.getElementById('alta-ic').checked = false;
+  abrirModal('modal-alta-jug');
+}
+
+async function confirmarAltaJugador() {
+  const equipoId = document.getElementById('alta-equipo').value;
+  const nombre   = document.getElementById('alta-nombre').value.trim();
+  if (!equipoId) { showToast('Seleccioná un equipo', 'error'); return; }
+  if (!nombre)   { showToast('Ingresá el nombre del jugador', 'error'); return; }
+  const btn = document.getElementById('btn-alta-jug');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const data = await api('altaJugador', {
+      equipoId, nombre,
+      mas35: String(document.getElementById('alta-mas35').checked),
+      ic:    String(document.getElementById('alta-ic').checked),
+    });
+    if (data.ok) {
+      cerrarModal('modal-alta-jug');
+      showToast('Jugador dado de alta ✅', 'success');
+      renderGestionJugadores(equipoId);
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  btn.disabled = false; btn.textContent = '➕ Dar de alta';
+}
+
+function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic) {
+  document.getElementById('edit-jug-id').value     = id;
+  document.getElementById('edit-jug-nombre').value = nombre;
+  document.getElementById('edit-jug-mas35').checked = mas35 === true || mas35 === 'true';
+  document.getElementById('edit-jug-ic').checked    = ic    === true || ic    === 'true';
+  abrirModal('modal-editar-jug');
+}
+
+async function confirmarEditarJugador() {
+  const jugadorId = document.getElementById('edit-jug-id').value;
+  const nombre    = document.getElementById('edit-jug-nombre').value.trim();
+  if (!nombre) { showToast('Ingresá el nombre', 'error'); return; }
+  try {
+    const data = await api('editarJugador', {
+      jugadorId, nombre,
+      mas35: String(document.getElementById('edit-jug-mas35').checked),
+      ic:    String(document.getElementById('edit-jug-ic').checked),
+    });
+    if (data.ok) {
+      cerrarModal('modal-editar-jug');
+      showToast('Jugador actualizado ✅', 'success');
+      renderGestionJugadores();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function abrirModalTraspaso(id, nombre, equipoActual) {
+  document.getElementById('trasp-jug-id').value    = id;
+  document.getElementById('trasp-jug-nombre').textContent = nombre + ' (desde: ' + equipoActual.replace(/_/g,' ') + ')';
+  abrirModal('modal-traspaso');
+}
+
+async function confirmarTraspaso() {
+  const jugadorId    = document.getElementById('trasp-jug-id').value;
+  const nuevoEquipoId = document.getElementById('trasp-equipo-dest').value;
+  if (!nuevoEquipoId) { showToast('Seleccioná el equipo destino', 'error'); return; }
+  try {
+    const data = await api('traspasarJugador', { jugadorId, nuevoEquipoId });
+    if (data.ok) {
+      cerrarModal('modal-traspaso');
+      showToast('Traspaso realizado ✅', 'success');
+      renderGestionJugadores();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function confirmarBajaJugador(jugadorId, nombre) {
+  if (!confirm(`¿Dar de BAJA a ${nombre}? Esta acción no se puede deshacer.`)) return;
+  try {
+    const data = await api('bajaJugador', { jugadorId });
+    if (data.ok) {
+      showToast('Jugador dado de baja ✅', 'success');
+      renderGestionJugadores();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+
 async function renderPlanillas() {
   const cnt = document.getElementById('main-content');
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando fixture...</div>';
