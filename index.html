@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagos CDP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul:    #1a3a5c;
+    --azul2:   #2563a8;
+    --verde:   #1d7a4e;
+    --verde2:  #22c55e;
+    --rojo:    #dc2626;
+    --amarillo:#d97706;
+    --gris0:   #f0f4f8;
+    --gris1:   #e2e8f0;
+    --gris2:   #94a3b8;
+    --gris3:   #64748b;
+    --texto:   #0f172a;
+    --blanco:  #ffffff;
+    --sombra:  0 2px 16px rgba(26,58,92,0.10);
+    --sombra2: 0 4px 32px rgba(26,58,92,0.16);
+    --radio:   14px;
+    --radio-sm:8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--gris0);
+    color: var(--texto);
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ────────────────────────────────── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f2744 0%, #1a3a5c 50%, #0d4f32 100%);
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--blanco);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.30);
+    text-align: center;
+  }
+  .login-logo {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, var(--azul) 0%, var(--verde) 100%);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+    box-shadow: 0 8px 24px rgba(26,58,92,0.3);
+  }
+  .login-card h1 { font-size: 1.6rem; font-weight: 700; color: var(--azul); margin-bottom: 4px; }
+  .login-card p  { font-size: 0.85rem; color: var(--gris3); margin-bottom: 32px; }
+  .login-tabs {
+    display: flex; gap: 4px;
+    background: var(--gris0);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+  .login-tab {
+    flex: 1; padding: 8px 12px; border: none; border-radius: 7px;
+    font-family: 'Sora', sans-serif; font-size: 0.8rem; font-weight: 500;
+    cursor: pointer; background: transparent; color: var(--gris3);
+    transition: all 0.2s;
+  }
+  .login-tab.active {
+    background: var(--blanco); color: var(--azul);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.12); font-weight: 600;
+  }
+  .form-group { margin-bottom: 16px; text-align: left; }
+  .form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--gris3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .form-group input, .form-group select {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--gris1);
+    border-radius: var(--radio-sm);
+    font-family: 'Sora', sans-serif; font-size: 0.92rem;
+    color: var(--texto); background: var(--blanco);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--azul2);
+    box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
+  }
+  .pin-input {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 1.4rem !important;
+    letter-spacing: 0.3em;
+    text-align: center;
+  }
+  .btn-primary {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--azul2) 0%, var(--azul) 100%);
+    color: var(--blanco); border: none; border-radius: var(--radio-sm);
+    font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(37,99,168,0.3);
+    margin-top: 4px;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,168,0.4); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .login-error {
+    background: #fef2f2; border: 1px solid #fecaca; color: var(--rojo);
+    border-radius: var(--radio-sm); padding: 10px 14px;
+    font-size: 0.82rem; margin-top: 12px; display: none;
+  }
+
+  /* ── APP SHELL ────────────────────────────── */
+  #app { display: none; min-height: 100vh; flex-direction: column; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--azul) 0%, #0f2744 100%);
+    color: var(--blanco);
+    padding: 0 24px;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header-title { font-size: 1rem; font-weight: 600; }
+  .header-equipo { font-size: 0.75rem; opacity: 0.7; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .badge-role {
+    padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge-delegado { background: rgba(34,197,94,0.2); color: #86efac; }
+  .badge-admin    { background: rgba(251,191,36,0.2); color: #fde68a; }
+  .btn-logout {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--blanco); padding: 6px 12px; border-radius: 6px;
+    font-family: 'Sora', sans-serif; font-size: 0.75rem; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,0.2); }
+
+  /* Tabs de navegación */
+  .nav-tabs {
+    background: var(--blanco);
+    border-bottom: 1px solid var(--gris1);
+    padding: 0 24px;
+    display: flex; gap: 0;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    padding: 14px 20px; border: none; background: transparent;
+    font-family: 'Sora', sans-serif; font-size: 0.85rem; font-weight: 500;
+    color: var(--gris3); cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    white-space: nowrap; transition: all 0.2s;
+  }
+  .nav-tab.active { color: var(--azul2); border-bottom-color: var(--azul2); font-weight: 600; }
+  .nav-tab:hover:not(.active) { color: var(--azul); }
+
+  /* Content */
+  .content { flex: 1; padding: 24px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+  /* ── CARDS & LAYOUT ───────────────────────── */
+  .card {
+    background: var(--blanco);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1rem; font-weight: 700; color: var(--azul);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Resumen del equipo (delegado) */
+  .equipo-header {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 16px; align-items: center;
+    background: linear-gradient(135deg, var(--azul) 0%, #0f2744 100%);
+    color: var(--blanco); border-radius: var(--radio);
+    padding: 24px; margin-bottom: 20px;
+  }
+  .equipo-nombre { font-size: 1.5rem; font-weight: 700; }
+  .equipo-cat    { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
+  .equipo-stats  { display: flex; gap: 20px; margin-top: 12px; }
+  .stat          { text-align: center; }
+  .stat-num      { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .stat-label    { font-size: 0.7rem; opacity: 0.7; margin-top: 2px; }
+
+  /* Selector de mes */
+  .mes-selector {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .mes-selector label { font-size: 0.85rem; font-weight: 600; color: var(--gris3); }
+  .mes-selector select {
+    padding: 8px 14px; border: 1.5px solid var(--gris1);
+    border-radius: var(--radio-sm); font-family: 'Sora', sans-serif;
+    font-size: 0.85rem; color: var(--texto); outline: none;
+    background: var(--blanco); cursor: pointer;
+  }
+  .mes-selector select:focus { border-color: var(--azul2); }
+
+  /* Tabla de jugadores */
+  .tabla-wrapper { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  thead tr { background: var(--gris0); }
+  th {
+    padding: 10px 14px; text-align: left; font-weight: 600;
+    color: var(--gris3); font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.05em; border-bottom: 1px solid var(--gris1);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px; border-bottom: 1px solid var(--gris0);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  .jugador-nombre { font-weight: 500; }
+  .jugador-badges { display: flex; gap: 4px; margin-top: 2px; }
+  .badge-mas35 { background: #fef3c7; color: #92400e; font-size: 0.65rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+  .badge-ic    { background: #ede9fe; color: #5b21b6; font-size: 0.65rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+
+  /* Estado comprobante */
+  .estado-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    white-space: nowrap;
+  }
+  .estado-pendiente  { background: #fefce8; color: #a16207; border: 1px solid #fde047; }
+  .estado-aprobado   { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+  .estado-rechazado  { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .estado-sin-cargar { background: var(--gris0); color: var(--gris2); border: 1px solid var(--gris1); font-style: italic; }
+
+  /* Botones de acción */
+  .btn-sm {
+    padding: 6px 12px; border-radius: 6px; border: none;
+    font-family: 'Sora', sans-serif; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-cargar    { background: var(--azul2); color: white; }
+  .btn-cargar:hover { background: var(--azul); }
+  .btn-ver       { background: var(--gris0); color: var(--gris3); border: 1px solid var(--gris1); }
+  .btn-ver:hover { background: var(--gris1); }
+  .btn-aprobar   { background: #dcfce7; color: var(--verde); border: 1px solid #86efac; }
+  .btn-aprobar:hover { background: #bbf7d0; }
+  .btn-rechazar  { background: #fee2e2; color: var(--rojo); border: 1px solid #fca5a5; }
+  .btn-rechazar:hover { background: #fecaca; }
+  .btn-actions   { display: flex; gap: 6px; }
+
+  /* Obs tooltip */
+  .obs-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #fef3c7; color: #d97706;
+    font-size: 0.7rem; cursor: pointer; font-weight: 700;
+    title: attr(data-obs);
+  }
+
+  /* ── MODAL ────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px; display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--blanco); border-radius: 18px; width: 100%; max-width: 520px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.25); overflow: hidden;
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: none; } }
+  .modal-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--gris1);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 1rem; font-weight: 700; color: var(--azul); }
+  .modal-close {
+    width: 30px; height: 30px; border-radius: 8px; border: none;
+    background: var(--gris0); color: var(--gris3); font-size: 1.1rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .modal-close:hover { background: var(--gris1); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--gris1); display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-info { background: var(--gris0); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+  .modal-info-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.83rem; }
+  .modal-info-row span:first-child { color: var(--gris3); }
+  .modal-info-row span:last-child  { font-weight: 600; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--gris1); border-radius: 12px;
+    padding: 32px; text-align: center; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 14px;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--azul2); background: #eff6ff; }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2rem; margin-bottom: 8px; }
+  .upload-text { font-size: 0.85rem; color: var(--gris3); }
+  .upload-text strong { color: var(--azul2); }
+  .upload-preview {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--gris0); border-radius: 8px; padding: 10px 14px;
+    font-size: 0.82rem; margin-bottom: 14px; display: none;
+  }
+  .upload-preview .file-icon { font-size: 1.3rem; }
+  .upload-preview .file-name { flex: 1; font-weight: 500; }
+  .upload-preview .file-size { color: var(--gris3); }
+  .upload-preview .remove-file { cursor: pointer; color: var(--rojo); padding: 2px 6px; }
+  textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--gris1);
+    border-radius: var(--radio-sm); font-family: 'Sora', sans-serif;
+    font-size: 0.85rem; resize: vertical; outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--azul2); }
+  .obs-rechazado {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 14px;
+    font-size: 0.82rem; color: #b91c1c;
+  }
+  .obs-rechazado strong { display: block; margin-bottom: 4px; }
+
+  /* Preview image in modal */
+  .comprobante-preview {
+    width: 100%; border-radius: 10px; object-fit: contain;
+    max-height: 300px; border: 1px solid var(--gris1);
+    margin-bottom: 12px;
+  }
+  .comprobante-pdf-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; background: var(--gris0); border-radius: 10px;
+    color: var(--azul2); font-weight: 600; font-size: 0.85rem;
+    text-decoration: none; margin-bottom: 12px;
+  }
+
+  /* Admin: filtros */
+  .filtros {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+  }
+  .filtros select, .filtros input {
+    padding: 8px 12px; border: 1.5px solid var(--gris1);
+    border-radius: var(--radio-sm); font-family: 'Sora', sans-serif;
+    font-size: 0.82rem; outline: none; background: var(--blanco);
+  }
+  .filtros select:focus, .filtros input:focus { border-color: var(--azul2); }
+  .filtro-estado {
+    display: flex; gap: 4px;
+  }
+  .filtro-btn {
+    padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--gris1);
+    background: var(--blanco); color: var(--gris3); font-family: 'Sora', sans-serif;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .filtro-btn.active-todos      { background: var(--azul2); color: white; border-color: var(--azul2); }
+  .filtro-btn.active-pendiente  { background: #fef3c7; color: #a16207; border-color: #fde047; }
+  .filtro-btn.active-aprobado   { background: #dcfce7; color: var(--verde); border-color: #86efac; }
+  .filtro-btn.active-rechazado  { background: #fee2e2; color: var(--rojo); border-color: #fca5a5; }
+
+  /* Stats admin */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--blanco); border-radius: var(--radio); padding: 18px 20px;
+    box-shadow: var(--sombra); border-left: 4px solid var(--gris1);
+  }
+  .stat-card.azul   { border-left-color: var(--azul2); }
+  .stat-card.verde  { border-left-color: var(--verde2); }
+  .stat-card.rojo   { border-left-color: var(--rojo); }
+  .stat-card.amarillo{ border-left-color: var(--amarillo); }
+  .stat-card-num   { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .stat-card-label { font-size: 0.75rem; color: var(--gris3); margin-top: 4px; }
+  .azul .stat-card-num    { color: var(--azul2); }
+  .verde .stat-card-num   { color: var(--verde); }
+  .rojo .stat-card-num    { color: var(--rojo); }
+  .amarillo .stat-card-num{ color: var(--amarillo); }
+
+  /* Loading */
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    padding: 60px; color: var(--gris2); font-size: 0.9rem; gap: 10px;
+  }
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid var(--gris1);
+    border-top-color: var(--azul2); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 48px; color: var(--gris2); font-size: 0.9rem; }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+    padding: 12px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15); transform: translateX(120%);
+    transition: transform 0.3s ease; max-width: 360px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.show { transform: none; }
+  .toast.success { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+  .toast.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .toast.info    { background: #eff6ff; color: var(--azul2); border: 1px solid #bfdbfe; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .content { padding: 16px; }
+    .login-card { padding: 32px 24px; }
+    .equipo-stats { gap: 12px; }
+    .filtros { gap: 8px; }
+    th, td { padding: 8px 10px; }
+  }
+
+  /* Pagination */
+  .pagination { display: flex; gap: 4px; justify-content: center; margin-top: 16px; }
+  .page-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--gris1);
+    background: var(--blanco); color: var(--gris3); font-family: 'Sora',sans-serif;
+    font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .page-btn.active { background: var(--azul2); color: white; border-color: var(--azul2); }
+  .page-btn:hover:not(.active) { border-color: var(--azul2); color: var(--azul2); }
+
+  /* Obs-tag en tabla */
+  .obs-tag {
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 0.75rem; color: var(--rojo);
+    cursor: help;
+  }
+
+  /* ── PLANILLAS ─────────────────────────────── */
+  .partido-card {
+    background: var(--blanco); border-radius: var(--radio);
+    box-shadow: var(--sombra); padding: 18px 20px;
+    margin-bottom: 12px; display: flex;
+    align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    transition: box-shadow 0.2s;
+  }
+  .partido-card:hover { box-shadow: var(--sombra2); }
+  .partido-info { flex: 1; min-width: 200px; }
+  .partido-titulo { font-weight: 700; font-size: 0.95rem; color: var(--azul); }
+  .partido-detalle { font-size: 0.78rem; color: var(--gris3); margin-top: 3px; }
+  .partido-detalle span { margin-right: 12px; }
+  .partido-cat { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .cat-libres { background: #dbeafe; color: #1d4ed8; }
+  .cat-senior { background: #fef3c7; color: #92400e; }
+  .btn-planilla {
+    padding: 8px 16px; background: var(--azul); color: white;
+    border: none; border-radius: var(--radio-sm);
+    font-family: 'Sora', sans-serif; font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(26,58,92,0.2);
+  }
+  .btn-planilla:hover { background: var(--azul2); transform: translateY(-1px); }
+  .btn-planilla:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .fixture-filtros { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .fixture-filtros select {
+    padding: 8px 12px; border: 1.5px solid var(--gris1);
+    border-radius: var(--radio-sm); font-family: 'Sora', sans-serif;
+    font-size: 0.82rem; outline: none; background: var(--blanco);
+    cursor: pointer;
+  }
+  .fixture-filtros select:focus { border-color: var(--azul2); }
+  .fixture-grupo-titulo {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--gris3);
+    margin: 20px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--gris1);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ LOGIN ═══════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">⚽</div>
+    <h1>Pagos CDP</h1>
+    <p>Club de Profesionales · Sistema de Comprobantes</p>
+
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="setLoginMode('delegado')">Delegado</button>
+      <button class="login-tab" onclick="setLoginMode('admin')">Administrador</button>
+    </div>
+
+    <!-- Delegado -->
+    <div id="form-delegado">
+      <div class="form-group">
+        <label>Equipo</label>
+        <select id="login-equipo">
+          <option value="">Seleccioná tu equipo...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>PIN de acceso</label>
+        <input type="password" id="login-pin" class="pin-input" placeholder="••••" maxlength="8" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <button class="btn-primary" onclick="doLogin()" id="btn-login">Ingresar</button>
+    </div>
+
+    <!-- Admin -->
+    <div id="form-admin" style="display:none">
+      <div class="form-group">
+        <label>PIN de administrador</label>
+        <input type="password" id="admin-pin" class="pin-input" placeholder="••••" maxlength="8" onkeydown="if(event.key==='Enter') doAdminLogin()">
+      </div>
+      <button class="btn-primary" onclick="doAdminLogin()" id="btn-admin-login">Ingresar como Admin</button>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══════ APP ══════════════════════════════════════════════════════ -->
+<div id="app" style="display:none; flex-direction:column; min-height:100vh;">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">⚽</div>
+      <div>
+        <div class="header-title">Pagos CDP</div>
+        <div class="header-equipo" id="header-subtitulo">Club de Profesionales</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="badge-role" id="badge-role">Delegado</span>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <!-- Nav tabs -->
+  <div class="nav-tabs" id="nav-tabs">
+    <!-- se llenan según el rol -->
+  </div>
+
+  <!-- Contenido -->
+  <div class="content" id="main-content">
+    <div class="loading"><div class="spinner"></div> Cargando...</div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL CARGAR COMPROBANTE ════════════════════════════════ -->
+<div class="modal-overlay" id="modal-cargar">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-cargar-title">Cargar Comprobante</span>
+      <button class="modal-close" onclick="cerrarModal('modal-cargar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info">
+        <div class="modal-info-row"><span>Jugador</span><span id="mc-jugador">—</span></div>
+        <div class="modal-info-row"><span>Equipo</span><span id="mc-equipo">—</span></div>
+        <div class="modal-info-row"><span>Mes</span><span id="mc-mes">—</span></div>
+      </div>
+      <div class="obs-rechazado" id="obs-rechazo-prev" style="display:none">
+        <strong>⚠️ Fue rechazado por:</strong>
+        <span id="obs-rechazo-texto"></span>
+      </div>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*,.pdf" onchange="handleFile(this)">
+        <div class="upload-icon">📎</div>
+        <div class="upload-text">
+          <strong>Arrastrá o hacé clic</strong> para seleccionar el comprobante<br>
+          <span style="font-size:0.75rem; color:var(--gris2)">JPG, PNG o PDF · Máx 10MB</span>
+        </div>
+      </div>
+      <div class="upload-preview" id="upload-preview">
+        <span class="file-icon" id="prev-icon">📄</span>
+        <span class="file-name" id="prev-name"></span>
+        <span class="file-size" id="prev-size"></span>
+        <span class="remove-file" onclick="removeFile()">✕</span>
+      </div>
+      <div class="form-group">
+        <label>Observación (opcional)</label>
+        <textarea id="mc-obs" rows="3" placeholder="Podés agregar una aclaración..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-cargar')">Cancelar</button>
+      <button class="btn-sm btn-cargar" id="btn-confirmar-carga" onclick="confirmarCarga()">Cargar comprobante</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL VER COMPROBANTE ════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-ver">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Ver Comprobante</span>
+      <button class="modal-close" onclick="cerrarModal('modal-ver')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-ver-body">
+    </div>
+    <div class="modal-footer" id="modal-ver-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL RECHAZAR ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-rechazar">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Rechazar Comprobante</span>
+      <button class="modal-close" onclick="cerrarModal('modal-rechazar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info">
+        <div class="modal-info-row"><span>Jugador</span><span id="rech-jugador">—</span></div>
+        <div class="modal-info-row"><span>Mes</span><span id="rech-mes">—</span></div>
+        <div class="modal-info-row"><span>Equipo</span><span id="rech-equipo">—</span></div>
+      </div>
+      <div class="form-group">
+        <label>Motivo del rechazo *</label>
+        <textarea id="rech-obs" rows="4" placeholder="Indicá por qué se rechaza el comprobante..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-rechazar')">Cancelar</button>
+      <button class="btn-sm btn-rechazar" onclick="confirmarRechazo()">Rechazar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TOAST ═══════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN  ←  COMPLETAR CON TUS DATOS
+// ══════════════════════════════════════════════════════════════════
+const CONFIG = {
+  // URL de tu Google Apps Script Web App (la pegás después de publicar)
+  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwAr254Oem8RMTZcscDBRAhULTnrimG1o-LGyF2_iYKON-3e5zElJsNKpKLFoC9yY_2/exec',
+
+  // PIN del administrador (podés cambiarlo en el script también)
+  ADMIN_PIN: '1603',
+
+  // Meses habilitados para carga
+  MESES: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+          'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+
+  // Mes activo por defecto (el actual)
+  MES_ACTUAL: 'Febrero'
+};
+
+// ══════════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ══════════════════════════════════════════════════════════════════
+let APP = {
+  rol: null,            // 'delegado' | 'admin'
+  equipo: null,         // objeto equipo del delegado
+  equipos: [],          // todos los equipos
+  jugadores: [],        // jugadores del equipo actual (delegado)
+  comprobantes: [],     // comprobantes cargados
+  mesSeleccionado: CONFIG.MES_ACTUAL,
+  paginaActual: 1,
+  porPagina: 25,
+  filtroEstado: 'todos',
+  filtroEquipo: '',
+  filtroMes: CONFIG.MES_ACTUAL,
+  // datos modal
+  modalJugadorId: null,
+  modalJugadorNombre: null,
+  modalComprobanteId: null,
+  archivoSeleccionado: null,
+};
+
+// ══════════════════════════════════════════════════════════════════
+// EQUIPOS HARDCODED (fallback mientras se carga del sheet)
+// ══════════════════════════════════════════════════════════════════
+const EQUIPOS_FALLBACK = [
+  {id:'Abogados_A',       nombre:'Abogados A',        cat:'Libres',  pin:''},
+  {id:'Abogados_AR',      nombre:'Abogados AR',        cat:'Libres',  pin:''},
+  {id:'Abogados_B',       nombre:'Abogados B',         cat:'Libres',  pin:''},
+  {id:'Arquitectos',      nombre:'Arquitectos',        cat:'Libres',  pin:''},
+  {id:'Contadores_A',     nombre:'Contadores A',       cat:'Libres',  pin:''},
+  {id:'Contadores_Z',     nombre:'Contadores Z',       cat:'Libres',  pin:''},
+  {id:'Docentes_A',       nombre:'Docentes A',         cat:'Libres',  pin:''},
+  {id:'Docentes_B',       nombre:'Docentes B',         cat:'Libres',  pin:''},
+  {id:'Docentes_E',       nombre:'Docentes E',         cat:'Libres',  pin:''},
+  {id:'Docentes_W',       nombre:'Docentes W',         cat:'Libres',  pin:''},
+  {id:'Ingenieros',       nombre:'Ingenieros',         cat:'Libres',  pin:''},
+  {id:'Ingenieros_S',     nombre:'Ingenieros S',       cat:'Libres',  pin:''},
+  {id:'Maestros',         nombre:'Maestros',           cat:'Libres',  pin:''},
+  {id:'Profesores_P',     nombre:'Profesores P',       cat:'Libres',  pin:''},
+  {id:'Salud_B',          nombre:'Salud B',            cat:'Libres',  pin:''},
+  {id:'Salud_F',          nombre:'Salud F',            cat:'Libres',  pin:''},
+  {id:'Salud_T',          nombre:'Salud T',            cat:'Libres',  pin:''},
+  {id:'Tecnicos_A',       nombre:'Tecnicos A',         cat:'Libres',  pin:''},
+  {id:'Abogados_A_(S)',   nombre:'Abogados A (S)',     cat:'Senior',  pin:''},
+  {id:'Arquitectos_(S)',  nombre:'Arquitectos (S)',    cat:'Senior',  pin:''},
+  {id:'Contadores_A_(S)', nombre:'Contadores A (S)',   cat:'Senior',  pin:''},
+  {id:'Contadores_Z_(S)', nombre:'Contadores Z (S)',   cat:'Senior',  pin:''},
+  {id:'Docentes_A_(S)',   nombre:'Docentes A (S)',     cat:'Senior',  pin:''},
+  {id:'Docentes_B_(S)',   nombre:'Docentes B (S)',     cat:'Senior',  pin:''},
+  {id:'Docentes_F_(S)',   nombre:'Docentes F (S)',     cat:'Senior',  pin:''},
+  {id:'Docentes_T_(S)',   nombre:'Docentes T (S)',     cat:'Senior',  pin:''},
+  {id:'Docentes_X_(S)',   nombre:'Docentes X (S)',     cat:'Senior',  pin:''},
+  {id:'Licenciados_(S)',  nombre:'Licenciados (S)',    cat:'Senior',  pin:''},
+  {id:'Salud_B_(S)',      nombre:'Salud B (S)',        cat:'Senior',  pin:''},
+  {id:'Salud_F_(S)',      nombre:'Salud F (S)',        cat:'Senior',  pin:''},
+];
+
+// ══════════════════════════════════════════════════════════════════
+// API
+// ══════════════════════════════════════════════════════════════════
+async function api(accion, datos = {}) {
+  const params = new URLSearchParams({ accion, ...datos });
+  const res = await fetch(CONFIG.SCRIPT_URL + '?' + params.toString());
+  if (!res.ok) throw new Error('Error de red');
+  return res.json();
+}
+
+async function apiPost(accion, datos = {}) {
+  const fd = new FormData();
+  fd.append('accion', accion);
+  for (const [k, v] of Object.entries(datos)) {
+    fd.append(k, v);
+  }
+  const res = await fetch(CONFIG.SCRIPT_URL, { method: 'POST', body: fd });
+  if (!res.ok) throw new Error('Error de red');
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════════════════════════════
+let loginMode = 'delegado';
+
+function setLoginMode(modo) {
+  loginMode = modo;
+  document.querySelectorAll('.login-tab').forEach((t,i) => t.classList.toggle('active', i===(modo==='delegado'?0:1)));
+  document.getElementById('form-delegado').style.display = modo==='delegado' ? '' : 'none';
+  document.getElementById('form-admin').style.display    = modo==='admin'    ? '' : 'none';
+  document.getElementById('login-error').style.display  = 'none';
+}
+
+async function cargarEquiposSelect() {
+  const sel = document.getElementById('login-equipo');
+  sel.innerHTML = '<option value="">Seleccioná tu equipo...</option>';
+
+  // Agrupar por categoría
+  const libres = EQUIPOS_FALLBACK.filter(e => e.cat === 'Libres');
+  const senior = EQUIPOS_FALLBACK.filter(e => e.cat === 'Senior');
+
+  const addGroup = (label, arr) => {
+    const og = document.createElement('optgroup');
+    og.label = label;
+    arr.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.id; o.textContent = e.nombre;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  };
+  addGroup('── Libres ──', libres);
+  addGroup('── Senior ──', senior);
+
+  // Intentar cargar PINs del sheet
+  try {
+    const data = await api('getEquipos');
+    if (data.ok) {
+      APP.equipos = data.equipos;
+      // Actualizar pins en el select sin cambiar opciones
+    }
+  } catch(e) {
+    // Usa fallback local
+    APP.equipos = EQUIPOS_FALLBACK;
+  }
+}
+
+async function doLogin() {
+  const equipoId = document.getElementById('login-equipo').value;
+  const pin      = document.getElementById('login-pin').value.trim();
+  const err      = document.getElementById('login-error');
+  const btn      = document.getElementById('btn-login');
+
+  if (!equipoId) { showError(err, 'Seleccioná un equipo.'); return; }
+  if (!pin)      { showError(err, 'Ingresá tu PIN.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  try {
+    const data = await api('login', { equipoId, pin });
+    if (data.ok) {
+      APP.rol = 'delegado';
+      APP.equipo = data.equipo;
+      iniciarApp();
+    } else {
+      showError(err, data.msg || 'PIN incorrecto.');
+    }
+  } catch(e) {
+    showError(err, 'No se pudo conectar. Revisá la URL del script.');
+  }
+  btn.disabled = false; btn.textContent = 'Ingresar';
+}
+
+async function doAdminLogin() {
+  const pin = document.getElementById('admin-pin').value.trim();
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('btn-admin-login');
+
+  if (!pin) { showError(err, 'Ingresá el PIN de administrador.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  try {
+    const data = await api('loginAdmin', { pin });
+    if (data.ok) {
+      APP.rol = 'admin';
+      iniciarApp();
+    } else {
+      showError(err, 'PIN de administrador incorrecto.');
+    }
+  } catch(e) {
+    showError(err, 'No se pudo conectar.');
+  }
+  btn.disabled = false; btn.textContent = 'Ingresar como Admin';
+}
+
+function showError(el, msg) {
+  el.style.display = 'block'; el.textContent = msg;
+}
+
+function doLogout() {
+  APP = { rol:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
+    mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
+    filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
+    modalJugadorId:null, modalJugadorNombre:null, modalComprobanteId:null, archivoSeleccionado:null
+  };
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('admin-pin').value = '';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INICIO DE APP
+// ══════════════════════════════════════════════════════════════════
+function iniciarApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Header
+  document.getElementById('header-subtitulo').textContent =
+    APP.rol === 'admin' ? 'Panel de Administración' : APP.equipo.nombre;
+  const badge = document.getElementById('badge-role');
+  badge.textContent = APP.rol === 'admin' ? 'Admin' : 'Delegado';
+  badge.className = 'badge-role ' + (APP.rol === 'admin' ? 'badge-admin' : 'badge-delegado');
+
+  // Tabs
+  const tabs = document.getElementById('nav-tabs');
+  if (APP.rol === 'delegado') {
+    tabs.innerHTML = `
+      <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Mis Comprobantes</button>
+      <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
+    `;
+    renderDelegado();
+  } else {
+    tabs.innerHTML = `
+      <button class="nav-tab active" onclick="navTo('panel-admin', this)">📊 Panel</button>
+      <button class="nav-tab" onclick="navTo('todos-comprobantes', this)">📋 Comprobantes</button>
+      <button class="nav-tab" onclick="navTo('por-equipo', this)">⚽ Por Equipo</button>
+      <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
+    `;
+    renderAdmin();
+  }
+}
+
+function navTo(vista, btn) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  if (vista === 'mis-comprobantes' || vista === 'historial') {
+    renderDelegado(vista);
+  } else if (vista === 'panel-admin') {
+    renderAdmin();
+  } else if (vista === 'todos-comprobantes') {
+    renderTodosComprobantes();
+  } else if (vista === 'por-equipo') {
+    renderPorEquipo();
+  } else if (vista === 'planillas') {
+    renderPlanillas();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISTA DELEGADO
+// ══════════════════════════════════════════════════════════════════
+async function renderDelegado(vista = 'mis-comprobantes') {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+
+  try {
+    const data = await api('getJugadores', { equipoId: APP.equipo.id });
+    if (!data.ok) throw new Error(data.msg);
+    APP.jugadores = data.jugadores;
+
+    const dataC = await api('getComprobantes', { equipoId: APP.equipo.id });
+    APP.comprobantes = dataC.ok ? dataC.comprobantes : [];
+
+    if (vista === 'historial') {
+      renderHistorial(cnt);
+    } else {
+      renderMisComprobantes(cnt);
+    }
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}</div>`;
+  }
+}
+
+function renderMisComprobantes(cnt) {
+  const eq = APP.equipo;
+  const jug = APP.jugadores;
+  const comp = APP.comprobantes;
+  const mes = APP.mesSeleccionado;
+
+  // Calcular stats del mes
+  const conComprobante  = comp.filter(c => c.mes === mes && c.estado !== 'Rechazado');
+  const aprobados       = comp.filter(c => c.mes === mes && c.estado === 'Aprobado');
+  const rechazados      = comp.filter(c => c.mes === mes && c.estado === 'Rechazado');
+
+  cnt.innerHTML = `
+    <div class="equipo-header">
+      <div>
+        <div class="equipo-nombre">${eq.nombre}</div>
+        <div class="equipo-cat">${eq.cat || ''}</div>
+        <div class="equipo-stats">
+          <div class="stat"><div class="stat-num">${jug.length}</div><div class="stat-label">Jugadores</div></div>
+          <div class="stat"><div class="stat-num" style="color:#86efac">${aprobados.length}</div><div class="stat-label">Aprobados</div></div>
+          <div class="stat"><div class="stat-num" style="color:#fde047">${conComprobante.length - aprobados.length}</div><div class="stat-label">Pendientes</div></div>
+          <div class="stat"><div class="stat-num" style="color:#fca5a5">${rechazados.length}</div><div class="stat-label">Rechazados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="mes-selector">
+        <label>Mes a visualizar:</label>
+        <select onchange="APP.mesSeleccionado=this.value; renderMisComprobantes(document.getElementById('main-content'))">
+          ${CONFIG.MESES.map(m => `<option ${m===mes?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="tabla-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Jugador</th>
+              <th>Estado</th>
+              <th>Observación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${jug.map((j, i) => {
+              const c = comp.find(c => c.jugadorId == j.id && c.mes === mes);
+              return renderFilaDelegado(i+1, j, c, mes);
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderFilaDelegado(i, jugador, comp, mes) {
+  let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
+  let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
+
+  if (comp) {
+    if (comp.estado === 'Aprobado') {
+      estadoHtml = `<span class="estado-badge estado-aprobado">✅ Aprobado</span>`;
+      accionHtml = `<button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>`;
+    } else if (comp.estado === 'Rechazado') {
+      estadoHtml = `<span class="estado-badge estado-rechazado">❌ Rechazado</span>`;
+      accionHtml = `
+        <div class="btn-actions">
+          <button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>
+          <button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}','${comp.id}','${(comp.obsAdmin||'').replace(/'/g,"\\'")}')">🔄 Reintentar</button>
+        </div>`;
+    } else {
+      estadoHtml = `<span class="estado-badge estado-pendiente">⏳ Pendiente</span>`;
+      accionHtml = `<button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>`;
+    }
+  }
+
+  const obsHtml = comp?.obsAdmin
+    ? `<span class="obs-tag" title="${comp.obsAdmin}">${comp.obsAdmin}</span>`
+    : '—';
+
+  const badges = [
+    jugador.mas35 ? '<span class="badge-mas35">+35</span>' : '',
+    jugador.ic    ? '<span class="badge-ic">IC</span>' : ''
+  ].join('');
+
+  return `
+    <tr>
+      <td style="color:var(--gris2); font-size:0.75rem; font-family:'JetBrains Mono',monospace">${String(i).padStart(2,'0')}</td>
+      <td>
+        <div class="jugador-nombre">${jugador.nombre}</div>
+        ${badges ? `<div class="jugador-badges">${badges}</div>` : ''}
+      </td>
+      <td>${estadoHtml}</td>
+      <td>${obsHtml}</td>
+      <td>${accionHtml}</td>
+    </tr>`;
+}
+
+function renderHistorial(cnt) {
+  const comp = [...APP.comprobantes].sort((a,b) => new Date(b.fecha)-new Date(a.fecha));
+  cnt.innerHTML = `
+    <div class="card">
+      <div class="card-title">📂 Historial completo — ${APP.equipo.nombre}</div>
+      ${comp.length === 0
+        ? '<div class="empty"><div class="empty-icon">📂</div>No hay comprobantes cargados.</div>'
+        : `<div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>Jugador</th><th>Mes</th><th>Estado</th><th>Fecha carga</th><th>Observación</th><th></th></tr></thead>
+            <tbody>
+              ${comp.map(c => `
+                <tr>
+                  <td class="jugador-nombre">${c.jugadorNombre}</td>
+                  <td>${c.mes}</td>
+                  <td>${estadoBadge(c.estado)}</td>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${formatFecha(c.fecha)}</td>
+                  <td>${c.obsAdmin ? `<span class="obs-tag" title="${c.obsAdmin}">${c.obsAdmin}</span>` : '—'}</td>
+                  <td><button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')">👁</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISTA ADMIN
+// ══════════════════════════════════════════════════════════════════
+async function renderAdmin() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando datos...</div>';
+
+  try {
+    const data = await api('getResumen');
+    if (!data.ok) throw new Error(data.msg);
+
+    const { total, aprobados, pendientes, rechazados, porEquipo } = data;
+    cnt.innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card azul"><div class="stat-card-num">${total}</div><div class="stat-card-label">Total comprobantes</div></div>
+        <div class="stat-card verde"><div class="stat-card-num">${aprobados}</div><div class="stat-card-label">Aprobados</div></div>
+        <div class="stat-card amarillo"><div class="stat-card-num">${pendientes}</div><div class="stat-card-label">Pendientes</div></div>
+        <div class="stat-card rojo"><div class="stat-card-num">${rechazados}</div><div class="stat-card-label">Rechazados</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚽ Resumen por equipo — ${APP.filtroMes}</div>
+        <div class="mes-selector" style="margin-bottom:14px">
+          <label>Mes:</label>
+          <select onchange="APP.filtroMes=this.value; renderAdmin()">
+            ${CONFIG.MESES.map(m=>`<option ${m===APP.filtroMes?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>Equipo</th><th>Categoría</th><th>Jugadores</th><th>Aprobados</th><th>Pendientes</th><th>Rechazados</th><th>Sin cargar</th></tr></thead>
+            <tbody>
+              ${(porEquipo||[]).map(e=>`
+                <tr>
+                  <td class="jugador-nombre">${e.nombre}</td>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${e.cat}</td>
+                  <td style="text-align:center">${e.total}</td>
+                  <td style="text-align:center;color:var(--verde);font-weight:600">${e.aprobados}</td>
+                  <td style="text-align:center;color:var(--amarillo);font-weight:600">${e.pendientes}</td>
+                  <td style="text-align:center;color:var(--rojo);font-weight:600">${e.rechazados}</td>
+                  <td style="text-align:center;color:var(--gris2)">${e.total - e.aprobados - e.pendientes - e.rechazados}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
+}
+
+async function renderTodosComprobantes() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando comprobantes...</div>';
+
+  try {
+    const data = await api('getAllComprobantes', {
+      mes: APP.filtroMes,
+      estado: APP.filtroEstado,
+      equipoId: APP.filtroEquipo
+    });
+    if (!data.ok) throw new Error(data.msg);
+    APP.comprobantes = data.comprobantes;
+    renderListaAdmin(cnt);
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
+}
+
+function renderListaAdmin(cnt) {
+  const comp = APP.comprobantes;
+  const inicio = (APP.paginaActual - 1) * APP.porPagina;
+  const pagina = comp.slice(inicio, inicio + APP.porPagina);
+
+  cnt.innerHTML = `
+    <div class="card">
+      <div class="card-title">📋 Comprobantes</div>
+      <div class="filtros">
+        <select onchange="APP.filtroMes=this.value; APP.paginaActual=1; renderTodosComprobantes()">
+          <option value="">Todos los meses</option>
+          ${CONFIG.MESES.map(m=>`<option ${m===APP.filtroMes?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <select onchange="APP.filtroEquipo=this.value; APP.paginaActual=1; renderTodosComprobantes()">
+          <option value="">Todos los equipos</option>
+          ${EQUIPOS_FALLBACK.map(e=>`<option value="${e.id}" ${e.id===APP.filtroEquipo?'selected':''}>${e.nombre}</option>`).join('')}
+        </select>
+        <div class="filtro-estado">
+          ${['todos','Pendiente','Aprobado','Rechazado'].map(e=>`
+            <button class="filtro-btn ${APP.filtroEstado===e?'active-'+e.toLowerCase():''}"
+              onclick="APP.filtroEstado='${e}'; APP.paginaActual=1; renderTodosComprobantes()">
+              ${e==='todos'?'Todos':e}
+            </button>`).join('')}
+        </div>
+      </div>
+      ${comp.length === 0
+        ? '<div class="empty"><div class="empty-icon">📋</div>No hay comprobantes con esos filtros.</div>'
+        : `<div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>Equipo</th><th>Jugador</th><th>Mes</th><th>Fecha</th><th>Estado</th><th>Observación</th><th>Acciones</th></tr></thead>
+            <tbody>
+              ${pagina.map(c=>`
+                <tr>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${c.equipoId.replace(/_/g,' ')}</td>
+                  <td class="jugador-nombre">${c.jugadorNombre}</td>
+                  <td>${c.mes}</td>
+                  <td style="font-size:0.75rem;color:var(--gris3)">${formatFecha(c.fecha)}</td>
+                  <td>${estadoBadge(c.estado)}</td>
+                  <td>${c.obsAdmin?`<span class="obs-tag" title="${c.obsAdmin}">${c.obsAdmin}</span>`:'—'}</td>
+                  <td>
+                    <div class="btn-actions">
+                      <button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')">👁 Ver</button>
+                      ${c.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${c.id}')">✅</button>` : ''}
+                      ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}','${c.equipoId}')">❌</button>` : ''}
+                    </div>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        ${renderPaginacion(comp.length)}`}
+    </div>`;
+}
+
+async function renderPorEquipo() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = `
+    <div class="card">
+      <div class="card-title">⚽ Ver comprobantes por equipo</div>
+      <div class="form-group" style="max-width:300px">
+        <label>Seleccioná un equipo</label>
+        <select id="sel-equipo-admin" onchange="cargarEquipoAdmin(this.value)">
+          <option value="">Elegí un equipo...</option>
+          ${EQUIPOS_FALLBACK.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('')}
+        </select>
+      </div>
+      <div id="equipo-admin-content"></div>
+    </div>`;
+}
+
+async function cargarEquipoAdmin(equipoId) {
+  if (!equipoId) return;
+  const div = document.getElementById('equipo-admin-content');
+  div.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const [dj, dc] = await Promise.all([
+      api('getJugadores', {equipoId}),
+      api('getComprobantes', {equipoId})
+    ]);
+    const jugadores = dj.ok ? dj.jugadores : [];
+    const comps = dc.ok ? dc.comprobantes : [];
+
+    div.innerHTML = `
+      <div class="mes-selector" style="margin:14px 0">
+        <label>Mes:</label>
+        <select id="mes-equipo-admin" onchange="actualizarTablaEquipoAdmin()" style="padding:8px 14px;border:1.5px solid var(--gris1);border-radius:8px;font-family:'Sora',sans-serif">
+          ${CONFIG.MESES.map(m=>`<option ${m===APP.filtroMes?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div id="tabla-equipo-admin"></div>`;
+
+    // Guardar datos para la tabla
+    window._adminEquipoData = { jugadores, comps };
+    actualizarTablaEquipoAdmin();
+  } catch(e) {
+    div.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function actualizarTablaEquipoAdmin() {
+  const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
+  const { jugadores, comps } = window._adminEquipoData || { jugadores:[], comps:[] };
+  const div = document.getElementById('tabla-equipo-admin');
+  if (!div) return;
+
+  div.innerHTML = `
+    <div class="tabla-wrapper">
+      <table>
+        <thead><tr><th>#</th><th>Jugador</th><th>Estado</th><th>Observación</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${jugadores.map((j,i) => {
+            const c = comps.find(c => c.jugadorId == j.id && c.mes === mes);
+            let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
+            let accionHtml = '—';
+            if (c) {
+              estadoHtml = estadoBadge(c.estado);
+              accionHtml = `
+                <div class="btn-actions">
+                  <button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')">👁 Ver</button>
+                  ${c.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${c.id}')">✅</button>` : ''}
+                  ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${j.nombre.replace(/'/g,"\\'")}','${mes}','')">❌</button>` : ''}
+                </div>`;
+            }
+            return `
+              <tr>
+                <td style="color:var(--gris2);font-family:'JetBrains Mono',monospace;font-size:0.75rem">${i+1}</td>
+                <td class="jugador-nombre">${j.nombre}
+                  ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">+35</span>':''}
+                  ${j.ic?'<span class="badge-ic" style="margin-left:4px">IC</span>':''}
+                </td>
+                <td>${estadoHtml}</td>
+                <td>${c?.obsAdmin?`<span class="obs-tag" title="${c.obsAdmin}">${c.obsAdmin}</span>`:'—'}</td>
+                <td>${accionHtml}</td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODALES
+// ══════════════════════════════════════════════════════════════════
+function abrirModalCargar(jugadorId, jugadorNombre, mes, comprobanteIdRechazado, obsRechazo) {
+  APP.modalJugadorId = jugadorId;
+  APP.modalJugadorNombre = jugadorNombre;
+  APP.modalComprobanteId = comprobanteIdRechazado;
+  APP.archivoSeleccionado = null;
+
+  document.getElementById('mc-jugador').textContent = jugadorNombre;
+  document.getElementById('mc-equipo').textContent  = APP.equipo?.nombre || '';
+  document.getElementById('mc-mes').textContent     = mes;
+  document.getElementById('mc-obs').value = '';
+  document.getElementById('modal-cargar-title').textContent =
+    comprobanteIdRechazado ? '🔄 Reintentar Comprobante' : '📤 Cargar Comprobante';
+
+  const obsDiv = document.getElementById('obs-rechazo-prev');
+  if (obsRechazo) {
+    obsDiv.style.display = '';
+    document.getElementById('obs-rechazo-texto').textContent = obsRechazo;
+  } else {
+    obsDiv.style.display = 'none';
+  }
+
+  removeFile();
+  abrirModal('modal-cargar');
+}
+
+function abrirModalRechazar(comprobanteId, jugadorNombre, mes, equipoId) {
+  APP.modalComprobanteId = comprobanteId;
+  document.getElementById('rech-jugador').textContent = jugadorNombre;
+  document.getElementById('rech-mes').textContent     = mes;
+  document.getElementById('rech-equipo').textContent  = equipoId.replace(/_/g,' ');
+  document.getElementById('rech-obs').value = '';
+  abrirModal('modal-rechazar');
+}
+
+async function abrirModalVer(comprobanteId) {
+  const body = document.getElementById('modal-ver-body');
+  const footer = document.getElementById('modal-ver-footer');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  abrirModal('modal-ver');
+
+  try {
+    const data = await api('getComprobante', { id: comprobanteId });
+    if (!data.ok) throw new Error(data.msg);
+    const c = data.comprobante;
+
+    const esImagen = /\.(jpg|jpeg|png|gif|webp)$/i.test(c.archivo||'');
+    const esPdf    = /\.pdf$/i.test(c.archivo||'');
+
+    body.innerHTML = `
+      <div class="modal-info">
+        <div class="modal-info-row"><span>Jugador</span><span>${c.jugadorNombre}</span></div>
+        <div class="modal-info-row"><span>Equipo</span><span>${c.equipoId.replace(/_/g,' ')}</span></div>
+        <div class="modal-info-row"><span>Mes</span><span>${c.mes}</span></div>
+        <div class="modal-info-row"><span>Fecha</span><span>${formatFecha(c.fecha)}</span></div>
+        <div class="modal-info-row"><span>Estado</span><span>${estadoBadge(c.estado)}</span></div>
+        ${c.obsAdmin?`<div class="modal-info-row"><span>Obs. Admin</span><span style="color:var(--rojo)">${c.obsAdmin}</span></div>`:''}
+        ${c.obsUsuario?`<div class="modal-info-row"><span>Obs. Delegado</span><span>${c.obsUsuario}</span></div>`:''}
+      </div>
+      ${c.urlArchivo
+        ? (esImagen
+          ? `<img src="${c.urlArchivo}" class="comprobante-preview" alt="Comprobante">`
+          : `<a href="${c.urlArchivo}" target="_blank" class="comprobante-pdf-link">📄 Abrir PDF en nueva pestaña</a>`)
+        : '<div class="empty" style="padding:20px">Sin archivo disponible</div>'}`;
+
+    footer.innerHTML = `
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver')">Cerrar</button>
+      ${APP.rol==='admin' && c.estado!=='Aprobado'
+        ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${comprobanteId}');cerrarModal('modal-ver')">✅ Aprobar</button>`:''}
+      ${APP.rol==='admin' && c.estado!=='Rechazado'
+        ? `<button class="btn-sm btn-rechazar" onclick="cerrarModal('modal-ver');abrirModalRechazar('${comprobanteId}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}','${c.equipoId}')">❌ Rechazar</button>`:''}`;
+  } catch(e) {
+    body.innerHTML = `<div class="empty">Error al cargar: ${e.message}</div>`;
+  }
+}
+
+function abrirModal(id) {
+  document.getElementById(id).classList.add('open');
+  document.getElementById(id).style.display = 'flex';
+}
+function cerrarModal(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('open');
+  el.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UPLOAD DE ARCHIVO
+// ══════════════════════════════════════════════════════════════════
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('El archivo no puede superar 10MB', 'error'); return;
+  }
+  APP.archivoSeleccionado = file;
+  const prev = document.getElementById('upload-preview');
+  prev.style.display = 'flex';
+  document.getElementById('prev-icon').textContent = file.type.includes('pdf') ? '📄' : '🖼️';
+  document.getElementById('prev-name').textContent = file.name;
+  document.getElementById('prev-size').textContent = formatSize(file.size);
+  document.getElementById('upload-zone').style.display = 'none';
+}
+
+function removeFile() {
+  APP.archivoSeleccionado = null;
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('upload-zone').style.display = '';
+  document.getElementById('file-input').value = '';
+}
+
+async function confirmarCarga() {
+  if (!APP.archivoSeleccionado) {
+    showToast('Seleccioná un archivo primero', 'error'); return;
+  }
+
+  const btn = document.getElementById('btn-confirmar-carga');
+  btn.disabled = true; btn.textContent = 'Subiendo...';
+
+  try {
+    // Convertir archivo a base64
+    const base64 = await fileToBase64(APP.archivoSeleccionado);
+    const obs = document.getElementById('mc-obs').value;
+    const mes = document.getElementById('mc-mes').textContent;
+
+    const data = await apiPost('cargarComprobante', {
+      equipoId:    APP.equipo.id,
+      jugadorId:   APP.modalJugadorId,
+      jugadorNombre: APP.modalJugadorNombre,
+      mes,
+      archivo:     base64,
+      nombreArchivo: APP.archivoSeleccionado.name,
+      tipoArchivo: APP.archivoSeleccionado.type,
+      obsUsuario:  obs,
+      reemplazaId: APP.modalComprobanteId || ''
+    });
+
+    if (data.ok) {
+      cerrarModal('modal-cargar');
+      showToast('¡Comprobante cargado correctamente!', 'success');
+      renderDelegado();
+    } else {
+      throw new Error(data.msg || 'Error al cargar');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Cargar comprobante';
+}
+
+async function aprobarComprobante(comprobanteId) {
+  try {
+    const data = await api('aprobar', { id: comprobanteId });
+    if (data.ok) {
+      showToast('Comprobante aprobado ✅', 'success');
+      renderTodosComprobantes();
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function confirmarRechazo() {
+  const obs = document.getElementById('rech-obs').value.trim();
+  if (!obs) { showToast('Ingresá el motivo del rechazo', 'error'); return; }
+
+  const btn = document.querySelector('#modal-rechazar .btn-rechazar');
+  btn.disabled = true; btn.textContent = 'Rechazando...';
+
+  try {
+    const data = await api('rechazar', { id: APP.modalComprobanteId, obs });
+    if (data.ok) {
+      cerrarModal('modal-rechazar');
+      showToast('Comprobante rechazado', 'info');
+      if (APP.rol === 'admin') renderTodosComprobantes();
+      else renderDelegado();
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Rechazar';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function estadoBadge(estado) {
+  const map = {
+    'Aprobado':  '<span class="estado-badge estado-aprobado">✅ Aprobado</span>',
+    'Rechazado': '<span class="estado-badge estado-rechazado">❌ Rechazado</span>',
+    'Pendiente': '<span class="estado-badge estado-pendiente">⏳ Pendiente</span>',
+  };
+  return map[estado] || `<span class="estado-badge estado-pendiente">⏳ ${estado||'Pendiente'}</span>`;
+}
+
+function formatFecha(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  return d.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function renderPaginacion(total) {
+  const paginas = Math.ceil(total / APP.porPagina);
+  if (paginas <= 1) return '';
+  let html = '<div class="pagination">';
+  for (let i = 1; i <= paginas; i++) {
+    html += `<button class="page-btn ${i===APP.paginaActual?'active':''}"
+      onclick="APP.paginaActual=${i}; renderListaAdmin(document.getElementById('main-content'))">${i}</button>`;
+  }
+  return html + '</div>';
+}
+
+let toastTimeout;
+function showToast(msg, tipo = 'info') {
+  const t = document.getElementById('toast');
+  const icons = { success:'✅', error:'❌', info:'ℹ️' };
+  t.innerHTML = `<span>${icons[tipo]||''}</span><span>${msg}</span>`;
+  t.className = `toast ${tipo} show`;
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PLANILLAS
+// ══════════════════════════════════════════════════════════════════
+async function renderPlanillas() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando fixture...</div>';
+
+  try {
+    const data = await api('getFixture');
+    if (!data.ok) {
+      cnt.innerHTML = `
+        <div class="card">
+          <div class="card-title">📄 Planillas de Partido</div>
+          <div class="empty" style="padding:32px 20px">
+            <div class="empty-icon">⚠️</div>
+            <p>${data.msg}</p>
+            <p style="font-size:0.8rem;color:var(--gris3);margin-top:8px">
+              Creá una pestaña llamada <strong>"Fixture"</strong> en el Google Sheet con las columnas:<br>
+              <code style="background:var(--gris0);padding:2px 6px;border-radius:4px;font-size:0.75rem">
+                FechaNro | Torneo | Categoría | Día | Fecha | Hora | Cancha | Equipo Local | Equipo Visitante | Resultado | Observaciones
+              </code>
+            </p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const partidos = data.partidos;
+    if (!partidos.length) {
+      cnt.innerHTML = `<div class="card"><div class="card-title">📄 Planillas de Partido</div>
+        <div class="empty"><div class="empty-icon">📅</div>No hay partidos en el fixture.</div></div>`;
+      return;
+    }
+
+    // Agrupar por FechaNro
+    const grupos = {};
+    partidos.forEach(p => {
+      const g = p.fechaNro || 'Sin fecha';
+      if (!grupos[g]) grupos[g] = [];
+      grupos[g].push(p);
+    });
+
+    let html = `
+      <div class="card">
+        <div class="card-title">📄 Planillas de Partido</div>
+        <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:16px">
+          Seleccioná un partido para generar la planilla con el estado de habilitación de cada jugador.
+        </p>
+        <div class="fixture-filtros">
+          <select onchange="filtrarFixture(this.value)" id="filtro-fecha-nro">
+            <option value="">Todas las fechas</option>
+            ${Object.keys(grupos).map(g => `<option value="${g}">${g}</option>`).join('')}
+          </select>
+        </div>
+        <div id="fixture-lista">`;
+
+    Object.entries(grupos).forEach(([fechaNro, pts]) => {
+      html += `<div class="fixture-grupo" data-fecha="${fechaNro}">
+        <div class="fixture-grupo-titulo">${fechaNro} — ${pts[0].torneo || ''}</div>`;
+      pts.forEach(p => {
+        const catClass = (p.categoria||'').toLowerCase().includes('senior') ? 'cat-senior' : 'cat-libres';
+        const pJson = JSON.stringify(p).replace(/"/g,'&quot;');
+        html += `
+          <div class="partido-card">
+            <div class="partido-info">
+              <div class="partido-titulo">
+                ${p.local} <span style="color:var(--gris2);font-weight:400">vs</span> ${p.visitante}
+                ${p.categoria ? `<span class="partido-cat ${catClass}">${p.categoria}</span>` : ''}
+              </div>
+              <div class="partido-detalle">
+                ${p.fecha ? `<span>📅 ${p.fecha}</span>` : ''}
+                ${p.hora  ? `<span>🕐 ${p.hora}</span>` : ''}
+                ${p.cancha? `<span>🟢 Cancha ${p.cancha}</span>` : ''}
+                ${p.obs   ? `<span style="color:var(--amarillo)">⚠️ ${p.obs}</span>` : ''}
+              </div>
+            </div>
+            <button class="btn-planilla" onclick="generarPlanilla(${pJson.replace(/&quot;/g,"'")})" 
+              id="btn-plan-${p.local.replace(/\s/g,'')}-${p.visitante.replace(/\s/g,'')}">
+              📄 Ver Planilla
+            </button>
+          </div>`;
+      });
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+    cnt.innerHTML = html;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+function filtrarFixture(fechaNro) {
+  document.querySelectorAll('.fixture-grupo').forEach(g => {
+    g.style.display = (!fechaNro || g.dataset.fecha === fechaNro) ? '' : 'none';
+  });
+}
+
+async function generarPlanilla(partido) {
+  const btnId = `btn-plan-${partido.local.replace(/\s/g,'')}-${partido.visitante.replace(/\s/g,'')}`;
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Cargando...'; }
+
+  try {
+    const data = await api('getPlanillaData', {
+      local:     partido.local,
+      visitante: partido.visitante,
+      fechaNro:  partido.fechaNro,
+      torneo:    partido.torneo,
+      categoria: partido.categoria,
+      fecha:     partido.fecha,
+      hora:      partido.hora,
+      cancha:    partido.cancha,
+    });
+
+    if (!data.ok) throw new Error(data.msg);
+    abrirVentanaPlanilla(data, partido);
+  } catch(e) {
+    showToast('Error al generar planilla: ' + e.message, 'error');
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '📄 Ver Planilla'; }
+}
+
+function abrirVentanaPlanilla(data, partido) {
+  const { jugadoresLocal, jugadoresVisitante, mesActual } = data;
+
+  function tablaJugadores(jugadores, equipoNombre, esLocal) {
+    if (!jugadores.length) {
+      return `<tr><td colspan="8" style="text-align:center;color:#888;font-style:italic;padding:12px">Sin jugadores registrados</td></tr>`;
+    }
+    return jugadores.map((j, i) => {
+      const hab = j.estado === 'Habilitado';
+      const prefijo = j.mas35 ? '+50 ' : '';
+      const sufijo  = j.ic    ? ' [IC]'  : '';
+      const estadoTxt = hab ? '✓ Habilitado' : `✗ ${j.estado}`;
+      return `
+        <tr>
+          <td class="col-nro">${String(i+1).padStart(2,'0')}</td>
+          <td class="col-nombre">${prefijo}<strong>${j.nombre}</strong>${sufijo}</td>
+          <td class="col-estado ${hab ? 'hab' : 'inhab'}">${estadoTxt}</td>
+          <td class="col-ch"></td>
+          <td class="col-firma"></td>
+          <td class="col-gol"></td>
+          <td class="col-am"></td>
+          <td class="col-roja"></td>
+        </tr>`;
+    }).join('');
+  }
+
+  const hoy = new Date().toLocaleDateString('es-AR');
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Planilla — ${partido.local} vs ${partido.visitante}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+  
+  .page { width: 210mm; min-height: 297mm; padding: 10mm 10mm; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Encabezado */
+  .header-planilla {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 3px solid #1a3a5c; padding-bottom: 8px; margin-bottom: 8px;
+  }
+  .header-logo {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .logo-box {
+    width: 44px; height: 44px; background: #1a3a5c; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 22px; font-weight: bold;
+  }
+  .header-club { font-size: 11px; color: #1a3a5c; }
+  .header-club strong { font-size: 14px; display: block; font-weight: 900; }
+  .header-titulo { text-align: center; font-size: 13px; font-weight: 700; color: #1a3a5c; text-transform: uppercase; letter-spacing: 1px; }
+  
+  /* Info del partido */
+  .partido-info {
+    background: #1a3a5c; color: white;
+    border-radius: 6px; padding: 8px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+  }
+  .partido-info .pi-item { text-align: center; }
+  .partido-info .pi-label { font-size: 8px; text-transform: uppercase; opacity: 0.7; letter-spacing: 0.5px; }
+  .partido-info .pi-valor { font-size: 12px; font-weight: 700; }
+  .partido-equipos { font-size: 15px; font-weight: 900; text-align: center; flex: 1; }
+  .partido-equipos .vs { font-size: 10px; font-weight: 400; opacity: 0.7; margin: 0 6px; }
+
+  /* Tabla de jugadores */
+  .equipo-titulo {
+    background: #1a3a5c; color: white;
+    padding: 6px 12px; font-weight: 700; font-size: 11px;
+    border-radius: 4px 4px 0 0; margin-top: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  thead tr { background: #e8eef5; }
+  th {
+    padding: 5px 6px; text-align: left; font-weight: 700;
+    font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px;
+    border: 0.5px solid #ccc; color: #333;
+  }
+  td { padding: 4px 6px; border: 0.5px solid #ddd; vertical-align: middle; }
+  tr:nth-child(even) td { background: #f8f9fb; }
+  
+  .col-nro   { width: 26px; text-align: center; color: #666; font-size: 9px; }
+  .col-nombre{ min-width: 160px; }
+  .col-estado{ width: 110px; font-size: 9px; }
+  .col-ch    { width: 36px; }
+  .col-firma { width: 80px; }
+  .col-gol   { width: 30px; text-align: center; }
+  .col-am    { width: 36px; text-align: center; }
+  .col-roja  { width: 30px; text-align: center; }
+  
+  .hab   { color: #15803d; font-weight: 600; }
+  .inhab { color: #b91c1c; font-weight: 700; }
+
+  /* Pie de planilla */
+  .pie {
+    margin-top: 18px; border-top: 1px solid #ccc; padding-top: 12px;
+    display: flex; justify-content: space-between; gap: 20px;
+  }
+  .pie-campo { flex: 1; }
+  .pie-campo label { font-size: 8px; text-transform: uppercase; color: #666; letter-spacing: 0.3px; display: block; margin-bottom: 20px; }
+  .pie-linea { border-bottom: 1px solid #999; height: 1px; margin-bottom: 4px; }
+  .pie-campo span { font-size: 7.5px; color: #888; }
+
+  .mes-badge {
+    display: inline-block; background: #1d7a4e; color: white;
+    padding: 2px 8px; border-radius: 10px; font-size: 8px; font-weight: 700;
+    margin-left: 6px; vertical-align: middle;
+  }
+
+  @media print {
+    body { margin: 0; }
+    .no-print { display: none !important; }
+    .page { padding: 8mm; }
+  }
+
+  /* Botones pantalla */
+  .toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #1a3a5c; padding: 10px 20px;
+    display: flex; gap: 10px; align-items: center;
+    z-index: 999; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .toolbar button {
+    padding: 8px 18px; border: none; border-radius: 6px;
+    font-family: Arial; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-imprimir { background: #22c55e; color: white; }
+  .btn-imprimir:hover { background: #16a34a; }
+  .btn-cerrar   { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3) !important; }
+  .btn-cerrar:hover { background: rgba(255,255,255,0.25); }
+  .toolbar-title { color: white; font-size: 13px; font-weight: 600; flex: 1; }
+  body { padding-top: 52px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  <span class="toolbar-title">${partido.local} vs ${partido.visitante} — ${partido.fechaNro} — ${partido.categoria || ''}</span>
+  <button class="btn-cerrar" onclick="window.close()">✕ Cerrar</button>
+</div>
+
+<!-- PÁGINA 1: Equipo Local -->
+<div class="page">
+  <div class="header-planilla">
+    <div class="header-logo">
+      <div class="logo-box">⚽</div>
+      <div class="header-club">
+        <strong>CDP</strong>
+        Club de Profesionales
+      </div>
+    </div>
+    <div class="header-titulo">Torneo ${partido.torneo || 'CDP'}</div>
+    <div style="text-align:right; font-size:9px; color:#555">
+      ${partido.fechaNro}<br>
+      Generada: ${hoy}<br>
+      Mes ref.: <strong>${mesActual}</strong>
+    </div>
+  </div>
+
+  <div class="partido-info">
+    <div class="pi-item"><div class="pi-label">Categoría</div><div class="pi-valor">${partido.categoria || '—'}</div></div>
+    <div class="partido-equipos">${partido.local} <span class="vs">vs</span> ${partido.visitante}</div>
+    <div class="pi-item"><div class="pi-label">Fecha</div><div class="pi-valor">${partido.fecha || '—'}</div></div>
+    <div class="pi-item"><div class="pi-label">Hora</div><div class="pi-valor">${partido.hora || '—'}</div></div>
+    <div class="pi-item"><div class="pi-label">Cancha</div><div class="pi-valor">${partido.cancha || '—'}</div></div>
+  </div>
+
+  <div class="equipo-titulo">
+    ${partido.local}
+    <span class="mes-badge">Ref. ${mesActual}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="col-nro">Nro</th>
+        <th class="col-nombre">Apellido y Nombres</th>
+        <th class="col-estado">Estado</th>
+        <th class="col-ch">Camiseta</th>
+        <th class="col-firma">Firma</th>
+        <th class="col-gol">Gol</th>
+        <th class="col-am">Amarillas</th>
+        <th class="col-roja">Roja</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tablaJugadores(jugadoresLocal, partido.local, true)}
+    </tbody>
+  </table>
+
+  <div class="pie">
+    <div class="pie-campo">
+      <label>Árbitro</label>
+      <div class="pie-linea"></div>
+      <span>Firma y aclaración</span>
+    </div>
+    <div class="pie-campo">
+      <label>Asistente 1</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Asistente 2</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Resultado final: ${partido.local} ___ — ___ ${partido.visitante}</label>
+      <div class="pie-linea"></div>
+    </div>
+  </div>
+  <div class="pie" style="margin-top:10px">
+    <div class="pie-campo">
+      <label>Firma responsable ${partido.local}</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Firma responsable ${partido.visitante}</label>
+      <div class="pie-linea"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PÁGINA 2: Equipo Visitante -->
+<div class="page">
+  <div class="header-planilla">
+    <div class="header-logo">
+      <div class="logo-box">⚽</div>
+      <div class="header-club">
+        <strong>CDP</strong>
+        Club de Profesionales
+      </div>
+    </div>
+    <div class="header-titulo">Torneo ${partido.torneo || 'CDP'}</div>
+    <div style="text-align:right; font-size:9px; color:#555">
+      ${partido.fechaNro}<br>
+      Generada: ${hoy}<br>
+      Mes ref.: <strong>${mesActual}</strong>
+    </div>
+  </div>
+
+  <div class="partido-info">
+    <div class="pi-item"><div class="pi-label">Categoría</div><div class="pi-valor">${partido.categoria || '—'}</div></div>
+    <div class="partido-equipos">${partido.visitante} <span class="vs">vs</span> ${partido.local}</div>
+    <div class="pi-item"><div class="pi-label">Fecha</div><div class="pi-valor">${partido.fecha || '—'}</div></div>
+    <div class="pi-item"><div class="pi-label">Hora</div><div class="pi-valor">${partido.hora || '—'}</div></div>
+    <div class="pi-item"><div class="pi-label">Cancha</div><div class="pi-valor">${partido.cancha || '—'}</div></div>
+  </div>
+
+  <div class="equipo-titulo">
+    ${partido.visitante}
+    <span class="mes-badge">Ref. ${mesActual}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="col-nro">Nro</th>
+        <th class="col-nombre">Apellido y Nombres</th>
+        <th class="col-estado">Estado</th>
+        <th class="col-ch">Camiseta</th>
+        <th class="col-firma">Firma</th>
+        <th class="col-gol">Gol</th>
+        <th class="col-am">Amarillas</th>
+        <th class="col-roja">Roja</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tablaJugadores(jugadoresVisitante, partido.visitante, false)}
+    </tbody>
+  </table>
+
+  <div class="pie">
+    <div class="pie-campo">
+      <label>Árbitro</label>
+      <div class="pie-linea"></div>
+      <span>Firma y aclaración</span>
+    </div>
+    <div class="pie-campo">
+      <label>Asistente 1</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Asistente 2</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Resultado final: ${partido.visitante} ___ — ___ ${partido.local}</label>
+      <div class="pie-linea"></div>
+    </div>
+  </div>
+  <div class="pie" style="margin-top:10px">
+    <div class="pie-campo">
+      <label>Firma responsable ${partido.visitante}</label>
+      <div class="pie-linea"></div>
+    </div>
+    <div class="pie-campo">
+      <label>Firma responsable ${partido.local}</label>
+      <div class="pie-linea"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+  if (!win) {
+    showToast('El navegador bloqueó la ventana emergente. Permitila para ver la planilla.', 'error');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+cargarEquiposSelect();
+
+// Drag & drop en upload zone
+document.getElementById('upload-zone')?.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+});
+document.getElementById('upload-zone')?.addEventListener('dragleave', e => {
+  e.currentTarget.classList.remove('drag-over');
+});
+document.getElementById('upload-zone')?.addEventListener('drop', e => {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const input = document.getElementById('file-input');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    handleFile(input);
+  }
+});
+</script>
+</body>
+</html>
