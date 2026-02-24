@@ -767,6 +767,100 @@
   </div>
 </div>
 
+<!-- Modal Salud Jugador -->
+<div class="modal-overlay" id="modal-salud" style="display:none">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-header">
+      <span class="modal-title">🏥 Información de Salud</span>
+      <button class="modal-close" onclick="cerrarModal('modal-salud')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:0">
+
+      <!-- Nombre jugador -->
+      <div style="font-weight:700;font-size:1rem;color:var(--azul);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--gris1)" id="salud-jugador-nombre"></div>
+
+      <!-- Loading -->
+      <div id="salud-modal-loading" style="text-align:center;padding:20px;display:none">
+        <div class="spinner" style="margin:0 auto"></div>
+      </div>
+
+      <!-- Cuerpo del formulario -->
+      <div id="salud-modal-body" style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Aviso confidencialidad -->
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:0.78rem;color:#1d4ed8">
+          🔒 Esta información es confidencial. Solo puede verla el delegado y el administrador del club.
+        </div>
+
+        <!-- Grupo y factor sanguíneo -->
+        <div class="form-group">
+          <label>Grupo y factor sanguíneo</label>
+          <select id="salud-grupo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+            <option value="">— No informado —</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+            <option>O+</option><option>O-</option>
+            <option>No sabe</option>
+          </select>
+        </div>
+
+        <!-- Condiciones médicas -->
+        <div class="form-group">
+          <label>Condiciones médicas relevantes</label>
+          <div style="font-size:0.75rem;color:var(--gris3);margin-bottom:6px">Ej: diabetes, hipertensión, epilepsia, alergias graves, asma, cardiopatías, etc.</div>
+          <textarea id="salud-condiciones" rows="3"
+            placeholder="Describí las condiciones que el equipo médico debe conocer ante una emergencia..."
+            style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical;font-size:0.88rem"></textarea>
+        </div>
+
+        <!-- Medicación -->
+        <div class="form-group">
+          <label>Medicación habitual</label>
+          <div style="font-size:0.75rem;color:var(--gris3);margin-bottom:6px">Medicamentos que toma regularmente y que pueden influir en la atención médica</div>
+          <textarea id="salud-medicacion" rows="2"
+            placeholder="Ej: Metformina 500mg, Enalapril 10mg, Aspirina 100mg..."
+            style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical;font-size:0.88rem"></textarea>
+        </div>
+
+        <!-- Separador -->
+        <div style="font-weight:700;font-size:0.82rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-top:4px;border-top:1px solid var(--gris1)">
+          🆘 Contacto de emergencia
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:180px">
+            <label>Nombre y apellido</label>
+            <input id="salud-contacto-nombre" type="text" placeholder="Ej: GARCIA MARIA"
+              style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>Teléfono / Celular</label>
+            <input id="salud-contacto-tel" type="tel" placeholder="03442 - 000000"
+              style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+
+        <!-- Separador -->
+        <div style="font-weight:700;font-size:0.82rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-top:4px;border-top:1px solid var(--gris1)">
+          🏥 Cobertura médica
+        </div>
+
+        <div class="form-group">
+          <label>Obra social / Prepaga</label>
+          <input id="salud-obra-social" type="text" placeholder="Ej: OSDE 210, IOMA, PAMI, sin cobertura..."
+            style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+        </div>
+
+      </div><!-- fin salud-modal-body -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-salud')">Cancelar</button>
+      <button class="btn-sm btn-aprobar" id="btn-guardar-salud" onclick="guardarSalud()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1003,6 +1097,7 @@ function iniciarApp() {
       <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Mis Comprobantes</button>
       <button class="nav-tab" onclick="navTo('habilitaciones', this)">🏅 Habilitaciones</button>
       <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
+      <button class="nav-tab" onclick="navTo('salud-delegado', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('gestion-delegado', this)">⚙️ Gestión</button>
     `;
     renderDelegado();
@@ -1014,6 +1109,7 @@ function iniciarApp() {
       <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
       <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
       <button class="nav-tab" onclick="navTo('solicitudes-alta', this)" id="tab-solicitudes">📥 Solicitudes</button>
+      <button class="nav-tab" onclick="navTo('salud-admin', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
     renderAdmin();
@@ -1041,6 +1137,10 @@ function navTo(vista, btn) {
     renderPlanillas();
   } else if (vista === 'solicitudes-alta') {
     renderSolicitudesAlta();
+  } else if (vista === 'salud-delegado') {
+    renderSaludDelegado();
+  } else if (vista === 'salud-admin') {
+    renderSaludAdmin();
   } else if (vista === 'configuracion') {
     renderConfiguracion();
   }
@@ -3082,6 +3182,239 @@ function descargarFicha(tipo) {
         ⬇️ Descargar Ficha de Inscripción (PDF)
       </a>`;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECCIÓN SALUD — DELEGADO
+// ══════════════════════════════════════════════════════════════════
+async function renderSaludDelegado() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+  try {
+    const [dataJug, dataSalud] = await Promise.all([
+      api('getJugadores', { equipoId: APP.equipo.id }),
+      api('getSaludEquipo', { equipoId: APP.equipo.id }),
+    ]);
+    const jugadores = dataJug.ok ? dataJug.jugadores : [];
+    const saludMap  = {};
+    if (dataSalud.ok) dataSalud.salud.forEach(s => { saludMap[s.jugadorId] = s; });
+
+    const completos   = jugadores.filter(j => saludMap[j.id]?.grupoSanguineo || saludMap[j.id]?.contactoNombre).length;
+    const incompletos = jugadores.length - completos;
+
+    cnt.innerHTML = `
+      <div class="equipo-header">
+        <div>
+          <div class="equipo-nombre">${APP.equipo.nombre}</div>
+          <div class="equipo-cat">Información de salud del plantel</div>
+          <div class="equipo-stats">
+            <div class="stat"><div class="stat-num">${jugadores.length}</div><div class="stat-label">Total</div></div>
+            <div class="stat"><div class="stat-num" style="color:#86efac">${completos}</div><div class="stat-label">Completados</div></div>
+            <div class="stat"><div class="stat-num" style="color:#fca5a5">${incompletos}</div><div class="stat-label">Sin completar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="card-title" style="margin:0">🏥 Información de salud</div>
+          <div style="font-size:0.78rem;color:var(--gris3)">Esta información es confidencial y solo visible para delegado y administrador.</div>
+        </div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Jugador</th>
+                <th>Grupo/Factor</th>
+                <th>Condiciones</th>
+                <th>Contacto emergencia</th>
+                <th>Obra social</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jugadores.map(j => {
+                const s = saludMap[j.id];
+                const tieneInfo = s && (s.grupoSanguineo || s.condicionesMedicas || s.contactoNombre);
+                return `<tr>
+                  <td>
+                    <div class="jugador-nombre">${j.nombre}</div>
+                    ${!tieneInfo ? '<div style="font-size:0.72rem;color:var(--rojo);margin-top:2px">⚠️ Sin completar</div>' : ''}
+                  </td>
+                  <td style="font-size:0.85rem;font-weight:${s?.grupoSanguineo?'700':'400'};color:${s?.grupoSanguineo?'var(--azul)':'var(--gris2)'}">
+                    ${s?.grupoSanguineo || '—'}
+                  </td>
+                  <td style="font-size:0.78rem;color:var(--gris3);max-width:160px">
+                    ${s?.condicionesMedicas ? `<span title="${s.condicionesMedicas}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${s.condicionesMedicas}</span>` : '—'}
+                  </td>
+                  <td style="font-size:0.78rem">
+                    ${s?.contactoNombre ? `<div style="font-weight:600">${s.contactoNombre}</div><div style="color:var(--azul2)">${s.contactoTel||''}</div>` : '<span style="color:var(--gris2)">—</span>'}
+                  </td>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${s?.obraSocial||'—'}</td>
+                  <td>
+                    <button class="btn-sm btn-ver" onclick="abrirModalSalud('${j.id}','${j.nombre.replace(/'/g,"\'")}','delegado')">
+                      ${tieneInfo ? '✏️ Editar' : '➕ Completar'}
+                    </button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECCIÓN SALUD — ADMIN
+// ══════════════════════════════════════════════════════════════════
+async function renderSaludAdmin() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+  try {
+    const [dataEq, dataSalud] = await Promise.all([
+      api('getEquipos'),
+      api('getSaludAdmin', {}),
+    ]);
+    const equipos  = dataEq.ok  ? dataEq.equipos  : [];
+    const saludArr = dataSalud.ok ? dataSalud.salud : [];
+
+    // Agrupar por equipo
+    const grupos = {};
+    saludArr.forEach(s => {
+      if (!grupos[s.equipoId]) grupos[s.equipoId] = [];
+      grupos[s.equipoId].push(s);
+    });
+
+    const opEq = equipos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div class="card-title" style="margin:0">🏥 Salud del plantel — Vista administrador</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <select id="filtro-equipo-salud" style="padding:8px 12px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.85rem"
+              onchange="filtrarTablaSalud(this.value)">
+              <option value="">Todos los equipos</option>
+              ${opEq}
+            </select>
+          </div>
+        </div>
+
+        ${saludArr.length === 0
+          ? '<div class="empty"><div class="empty-icon">🏥</div>No hay información de salud cargada aún.</div>'
+          : Object.entries(grupos).map(([eqId, jugs]) => {
+              const eq = equipos.find(e => e.id === eqId) || { nombre: eqId };
+              return `
+                <div class="salud-grupo" data-equipo="${eqId}" style="margin-bottom:24px">
+                  <div style="font-weight:700;font-size:0.88rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;padding:6px 0;border-bottom:2px solid var(--gris1)">
+                    ⚽ ${eq.nombre} <span style="color:var(--gris3);font-weight:400;font-size:0.8rem">(${jugs.length} registros)</span>
+                  </div>
+                  <div class="tabla-wrapper">
+                    <table>
+                      <thead><tr><th>Jugador</th><th>Grupo/Factor</th><th>Condiciones médicas</th><th>Medicación</th><th>Contacto emergencia</th><th>Obra social</th><th>Actualizado</th></tr></thead>
+                      <tbody>
+                        ${jugs.map(s => `<tr>
+                          <td>
+                            <div class="jugador-nombre">${s.nombre}</div>
+                          </td>
+                          <td style="font-weight:700;color:var(--azul);font-size:0.9rem">${s.grupoSanguineo||'—'}</td>
+                          <td style="font-size:0.78rem;color:var(--gris3);max-width:180px">
+                            ${s.condicionesMedicas
+                              ? `<span style="color:var(--rojo);font-weight:600">${s.condicionesMedicas}</span>`
+                              : '<span style="color:var(--gris2)">Ninguna</span>'}
+                          </td>
+                          <td style="font-size:0.78rem;color:var(--gris3);max-width:150px">${s.medicacion||'—'}</td>
+                          <td style="font-size:0.78rem">
+                            ${s.contactoNombre
+                              ? `<div style="font-weight:600">${s.contactoNombre}</div><div style="color:var(--azul2)">${s.contactoTel||''}</div>`
+                              : '<span style="color:var(--gris2)">—</span>'}
+                          </td>
+                          <td style="font-size:0.78rem;color:var(--gris3)">${s.obraSocial||'—'}</td>
+                          <td style="font-size:0.72rem;color:var(--gris2)">${s.fechaActualizacion||'—'}</td>
+                        </tr>`).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>`;
+            }).join('')}
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+function filtrarTablaSalud(equipoId) {
+  document.querySelectorAll('.salud-grupo').forEach(g => {
+    g.style.display = (!equipoId || g.dataset.equipo === equipoId) ? '' : 'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODAL SALUD — carga y edición
+// ══════════════════════════════════════════════════════════════════
+async function abrirModalSalud(jugadorId, jugadorNombre, modo) {
+  APP.modalJugadorId     = jugadorId;
+  APP.modalJugadorNombre = jugadorNombre;
+  APP._saludModo         = modo; // 'delegado' o 'admin'
+
+  document.getElementById('salud-jugador-nombre').textContent = jugadorNombre;
+
+  // Limpiar campos
+  const campos = ['salud-grupo', 'salud-condiciones', 'salud-medicacion',
+                  'salud-contacto-nombre', 'salud-contacto-tel', 'salud-obra-social'];
+  campos.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+  // Cargar datos existentes si hay
+  try {
+    document.getElementById('salud-modal-loading').style.display = '';
+    document.getElementById('salud-modal-body').style.display = 'none';
+    abrirModal('modal-salud');
+
+    const data = await api('getSaludJugador', { jugadorId });
+    document.getElementById('salud-modal-loading').style.display = 'none';
+    document.getElementById('salud-modal-body').style.display = '';
+
+    if (data.ok && data.salud) {
+      const s = data.salud;
+      document.getElementById('salud-grupo').value           = s.grupoSanguineo     || '';
+      document.getElementById('salud-condiciones').value     = s.condicionesMedicas || '';
+      document.getElementById('salud-medicacion').value      = s.medicacion         || '';
+      document.getElementById('salud-contacto-nombre').value = s.contactoNombre     || '';
+      document.getElementById('salud-contacto-tel').value    = s.contactoTel        || '';
+      document.getElementById('salud-obra-social').value     = s.obraSocial         || '';
+    }
+  } catch(e) {
+    document.getElementById('salud-modal-loading').style.display = 'none';
+    document.getElementById('salud-modal-body').style.display = '';
+  }
+}
+
+async function guardarSalud() {
+  const btn = document.getElementById('btn-guardar-salud');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const data = await api('setSaludJugador', {
+      jugadorId:          APP.modalJugadorId,
+      equipoId:           APP.equipo?.id || '',
+      nombre:             APP.modalJugadorNombre,
+      grupoSanguineo:     document.getElementById('salud-grupo').value.trim(),
+      condicionesMedicas: document.getElementById('salud-condiciones').value.trim(),
+      medicacion:         document.getElementById('salud-medicacion').value.trim(),
+      contactoNombre:     document.getElementById('salud-contacto-nombre').value.trim(),
+      contactoTel:        document.getElementById('salud-contacto-tel').value.trim(),
+      obraSocial:         document.getElementById('salud-obra-social').value.trim(),
+    });
+    if (data.ok) {
+      cerrarModal('modal-salud');
+      showToast('Información de salud guardada ✅', 'success');
+      if (APP._saludModo === 'delegado') renderSaludDelegado();
+      else renderSaludAdmin();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  btn.disabled = false; btn.textContent = '💾 Guardar';
 }
 
 // ══════════════════════════════════════════════════════════════════
