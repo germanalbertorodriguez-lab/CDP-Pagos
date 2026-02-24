@@ -493,6 +493,28 @@
     margin: 20px 0 10px; padding-bottom: 6px;
     border-bottom: 1px solid var(--gris1);
   }
+
+  /* ── GESTIÓN DELEGADO ────────────────────────────────── */
+  .gestion-card {
+    background: var(--blanco);
+    border: 1.5px solid var(--gris1);
+    border-radius: 14px;
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gestion-card:hover {
+    border-color: var(--azul2);
+    box-shadow: var(--sombra2);
+    transform: translateY(-2px);
+  }
+  .gestion-icon { font-size: 2rem; }
+  .gestion-title { font-weight: 700; font-size: 0.95rem; color: var(--azul); }
+  .gestion-desc { font-size: 0.78rem; color: var(--gris3); line-height: 1.5; }
+
 </style>
 </head>
 <body>
@@ -650,6 +672,101 @@
 </div>
 
 <!-- ═══════ TOAST ═══════════════════════════════════════════════════ -->
+<!-- Modal Baja Jugador -->
+<div class="modal-overlay" id="modal-baja-jug" style="display:none">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">🗑 Dar de baja</span>
+      <button class="modal-close" onclick="cerrarModal('modal-baja-jug')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <input type="hidden" id="baja-jug-id">
+      <p id="baja-jug-nombre" style="font-weight:700;color:var(--azul);font-size:1rem"></p>
+      <div class="form-group">
+        <label>Último mes con pago aprobado *</label>
+        <select id="baja-ultimo-mes" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          <option value="">— Seleccioná —</option>
+          <option>Enero</option><option>Febrero</option><option>Marzo</option><option>Abril</option>
+          <option>Mayo</option><option>Junio</option><option>Julio</option><option>Agosto</option>
+          <option>Septiembre</option><option>Octubre</option><option>Noviembre</option><option>Diciembre</option>
+          <option>Sin pagos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Motivo de la baja</label>
+        <input id="baja-motivo" type="text" placeholder="Ej: Se retiró del club" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+      </div>
+      <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px;font-size:0.8rem;color:#b91c1c">
+        ⚠️ Esta acción dará de baja al jugador y guardará el historial. No se puede deshacer.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-baja-jug')">Cancelar</button>
+      <button class="btn-sm btn-rechazar" onclick="confirmarBajaJugador()">🗑 Confirmar baja</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Observación Solicitud -->
+<div class="modal-overlay" id="modal-obs-solicitud" style="display:none">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title" id="obs-sol-titulo">📝 Observar solicitud</span>
+      <button class="modal-close" onclick="cerrarModal('modal-obs-solicitud')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label id="obs-sol-label">Aclaración / motivo</label>
+        <textarea id="obs-sol-texto" rows="4" placeholder="Describí qué falta o el motivo..."
+          style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-obs-solicitud')">Cancelar</button>
+      <button class="btn-sm btn-aprobar" onclick="confirmarObservacion()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Subir Estudio Médico -->
+<div class="modal-overlay" id="modal-subir-estudio" style="display:none">
+  <div class="modal-card" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">🏥 Subir Estudio Médico</span>
+      <button class="modal-close" onclick="cerrarModal('modal-subir-estudio')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-weight:600;color:var(--azul)" id="estudio-jugador"></div>
+      <div style="font-size:0.8rem;color:var(--gris3);padding:8px 12px;background:var(--gris0);border-radius:8px" id="estudio-tipo"></div>
+      <div style="border:2px dashed var(--gris1);border-radius:10px;padding:20px;text-align:center">
+        <div style="font-size:0.85rem;color:var(--gris3);margin-bottom:8px" id="estudio-file-status">Sin archivo seleccionado</div>
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:var(--azul2);color:white;border-radius:7px;cursor:pointer;font-size:0.85rem;font-weight:600">
+          📎 Seleccionar PDF o imagen
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleEstudioFile(this)">
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-subir-estudio')">Cancelar</button>
+      <button class="btn-sm btn-aprobar" id="btn-confirmar-estudio" onclick="confirmarSubirEstudio()">Subir estudio</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Fichas PDF -->
+<div class="modal-overlay" id="modal-fichas" style="display:none">
+  <div class="modal-card" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">📄 Descargar Ficha</span>
+      <button class="modal-close" onclick="cerrarModal('modal-fichas')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px" id="fichas-body"></div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-fichas')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -669,6 +786,9 @@ const CONFIG = {
 
   // Mes activo por defecto (el actual)
   MES_ACTUAL: 'Febrero'
+  // URLs de las fichas PDF (pegá el link de Drive para compartir):
+  URL_FICHA_MEDICA:      'https://drive.google.com/file/d/1njxys1MIu403PRY0Jox1nlguopzIaVRz/view?usp=sharing', // Google Drive: compartir → cualquiera con el link → copiar link
+  URL_FICHA_INSCRIPCION: 'https://drive.google.com/file/d/1wao4YbRJVdYyVNb6leEH_qpwjG3fat0Q/view?usp=sharing', // Ídem para la ficha de inscripción
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -883,15 +1003,18 @@ function iniciarApp() {
       <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Mis Comprobantes</button>
       <button class="nav-tab" onclick="navTo('habilitaciones', this)">🏅 Habilitaciones</button>
       <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
+      <button class="nav-tab" onclick="navTo('gestion-delegado', this)">⚙️ Gestión</button>
     `;
     renderDelegado();
   } else {
     tabs.innerHTML = `
-      <button class="nav-tab active" onclick="navTo('panel-admin', this)">📊 Panel</button>
+      <button class="nav-tab active" onclick="navTo('panel-admin', this)" id="tab-panel-admin">📊 Panel</button>
       <button class="nav-tab" onclick="navTo('todos-comprobantes', this)">📋 Comprobantes</button>
       <button class="nav-tab" onclick="navTo('por-equipo', this)">⚽ Por Equipo</button>
       <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
       <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
+      <button class="nav-tab" onclick="navTo('solicitudes-alta', this)" id="tab-solicitudes">📥 Solicitudes</button>
+      <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
     renderAdmin();
   }
@@ -904,6 +1027,8 @@ function navTo(vista, btn) {
     renderDelegado(vista);
   } else if (vista === 'habilitaciones') {
     renderHabilitaciones();
+  } else if (vista === 'gestion-delegado') {
+    renderGestionDelegado();
   } else if (vista === 'panel-admin') {
     renderAdmin();
   } else if (vista === 'todos-comprobantes') {
@@ -914,6 +1039,10 @@ function navTo(vista, btn) {
     renderGestionJugadores();
   } else if (vista === 'planillas') {
     renderPlanillas();
+  } else if (vista === 'solicitudes-alta') {
+    renderSolicitudesAlta();
+  } else if (vista === 'configuracion') {
+    renderConfiguracion();
   }
 }
 
@@ -942,7 +1071,7 @@ async function renderDelegado(vista = 'mis-comprobantes') {
   }
 }
 
-function renderMisComprobantes(cnt) {
+async function renderMisComprobantes(cnt) {
   const eq = APP.equipo;
   const jug = APP.jugadores;
   const comp = APP.comprobantes.filter(c => c.estado !== 'Reemplazado'); // Ignorar reemplazados
@@ -965,6 +1094,19 @@ function renderMisComprobantes(cnt) {
   const pendientes  = compActivos.filter(c => c?.estado === 'Pendiente').length;
   const rechazados  = compActivos.filter(c => c?.estado === 'Rechazado').length;
 
+  // Cargar cuotas para mostrar recordatorio
+  let cuotaInfo = '';
+  try {
+    const paramData = await api('getParametros');
+    if (paramData.ok && (paramData.cuotaSocial || paramData.cuotaDeportiva)) {
+      cuotaInfo = `<div style="background:linear-gradient(135deg,#1a3a5c,#0d4f32);border-radius:10px;padding:10px 16px;margin-top:10px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+        <span style="color:rgba(255,255,255,0.7);font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">💡 Valores vigentes:</span>
+        ${paramData.cuotaSocial    ? `<span style="color:#86efac;font-size:0.9rem;font-weight:700">Cuota Social: $${Number(paramData.cuotaSocial).toLocaleString('es-AR')}</span>` : ''}
+        ${paramData.cuotaDeportiva ? `<span style="color:#fde047;font-size:0.9rem;font-weight:700">Cuota Deportiva: $${Number(paramData.cuotaDeportiva).toLocaleString('es-AR')}</span>` : ''}
+      </div>`;
+    }
+  } catch(e) {}
+
   cnt.innerHTML = `
     <div class="equipo-header">
       <div>
@@ -976,6 +1118,7 @@ function renderMisComprobantes(cnt) {
           <div class="stat"><div class="stat-num" style="color:#fde047">${pendientes}</div><div class="stat-label">Pendientes</div></div>
           <div class="stat"><div class="stat-num" style="color:#fca5a5">${rechazados}</div><div class="stat-label">Rechazados</div></div>
         </div>
+        ${cuotaInfo}
       </div>
     </div>
 
@@ -1096,6 +1239,10 @@ async function renderAdmin() {
         <div class="stat-card verde"><div class="stat-card-num">${aprobados}</div><div class="stat-card-label">Aprobados</div></div>
         <div class="stat-card amarillo"><div class="stat-card-num">${pendientes}</div><div class="stat-card-label">Pendientes</div></div>
         <div class="stat-card rojo"><div class="stat-card-num">${rechazados}</div><div class="stat-card-label">Rechazados</div></div>
+        ${data.solicitudesPendientes > 0 ? `<div class="stat-card amarillo" style="cursor:pointer" onclick="document.querySelector('#tab-solicitudes')?.click()">
+          <div class="stat-card-num">` + '${data.solicitudesPendientes}' + `</div>
+          <div class="stat-card-label">Solicitudes alta pendientes ⚠️</div>
+        </div>` : ''}
       </div>
       <div class="card">
         <div class="card-title">⚽ Resumen por equipo — ${APP.filtroMes}</div>
@@ -1642,6 +1789,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
             ${opEq}
           </select>
           <button class="btn-sm btn-aprobar" onclick="abrirModalAltaJugador()">➕ Alta jugador</button>
+          <button class="btn-sm btn-ver" onclick="renderHistorialBajas()">📋 Historial de bajas</button>
         </div>
 
         ${Object.keys(grupos).length === 0
@@ -1655,22 +1803,31 @@ async function renderGestionJugadores(equipoFiltro = '') {
                   </div>
                   <div class="tabla-wrapper">
                     <table>
-                      <thead><tr><th>ID</th><th>Apellido y Nombres</th><th>+35</th><th>IC</th><th>Acciones</th></tr></thead>
+                      <thead><tr><th>ID</th><th>Apellido y Nombres</th><th>DNI</th><th>Tipo</th><th>+35</th><th>IC</th><th>Estado</th><th>Acciones</th></tr></thead>
                       <tbody>
-                        ${jugs.map(j => `
+                        ${jugs.map(j => {
+                          const habColor = j.habManual==='SI' ? 'var(--verde)' : j.habManual==='NO' ? 'var(--rojo)' : 'var(--gris3)';
+                          const habLabel = j.habManual==='SI' ? '✅ Hab. manual' : j.habManual==='NO' ? '❌ Inh. manual' : '—';
+                          return `
                           <tr>
                             <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--gris3)">${j.id}</td>
                             <td class="jugador-nombre">${j.nombre}</td>
+                            <td style="font-size:0.78rem;color:var(--gris3)">${j.dni||'—'}</td>
+                            <td><span style="font-size:0.75rem;padding:2px 6px;border-radius:8px;background:var(--gris1);color:var(--gris3)">${j.tipoSocio||'Activo'}</span></td>
                             <td style="text-align:center">${j.mas35?'<span class="badge-mas35">+35</span>':''}</td>
                             <td style="text-align:center">${j.ic?'<span class="badge-ic">IC</span>':''}</td>
+                            <td style="font-size:0.78rem;color:${habColor};font-weight:600">${habLabel}</td>
                             <td>
                               <div class="btn-actions">
-                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic})">✏️ Editar</button>
+                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic},'${j.dni||''}','${j.tipoSocio||'Activo'}')">✏️ Editar</button>
                                 <button class="btn-sm btn-ver" onclick="abrirModalTraspaso('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}')">🔄 Traspasar</button>
-                                <button class="btn-sm btn-rechazar" onclick="confirmarBajaJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">🗑 Baja</button>
+                                ${j.habManual!=='SI' ? `<button class="btn-sm btn-aprobar" onclick="habilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">✅ Habilitar</button>` : ''}
+                                ${j.habManual!=='NO' ? `<button class="btn-sm" style="background:#f59e0b;color:white" onclick="inhabilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">⛔ Inhabilitar</button>` : ''}
+                                ${j.habManual ? `<button class="btn-sm" style="background:var(--gris2);color:white" onclick="limpiarHabManual('${j.id}')">🔄 Normal</button>` : ''}
+                                <button class="btn-sm btn-rechazar" onclick="abrirModalBajaJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">🗑 Baja</button>
                               </div>
                             </td>
-                          </tr>`).join('')}
+                          </tr>`; }).join('')}
                       </tbody>
                     </table>
                   </div>
@@ -1680,7 +1837,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
 
       <!-- Modal Alta Jugador -->
       <div class="modal-overlay" id="modal-alta-jug" style="display:none">
-        <div class="modal-card" style="max-width:420px">
+        <div class="modal-card" style="max-width:480px">
           <div class="modal-header">
             <span class="modal-title">➕ Alta de jugador</span>
             <button class="modal-close" onclick="cerrarModal('modal-alta-jug')">✕</button>
@@ -1696,6 +1853,24 @@ async function renderGestionJugadores(equipoFiltro = '') {
             <div class="form-group">
               <label>Apellido y Nombres</label>
               <input id="alta-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            </div>
+            <div style="display:flex;gap:12px">
+              <div class="form-group" style="flex:1">
+                <label>DNI</label>
+                <input id="alta-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Fecha de Nacimiento</label>
+                <input id="alta-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tipo de Socio</label>
+              <select id="alta-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                <option value="Activo">Activo</option>
+                <option value="Pasivo">Pasivo (solo cuota social)</option>
+                <option value="Colaborador">Colaborador</option>
+              </select>
             </div>
             <div style="display:flex;gap:16px">
               <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
@@ -1713,9 +1888,9 @@ async function renderGestionJugadores(equipoFiltro = '') {
         </div>
       </div>
 
-      <!-- Modal Editar Jugador -->
+<!-- Modal Editar Jugador -->
       <div class="modal-overlay" id="modal-editar-jug" style="display:none">
-        <div class="modal-card" style="max-width:420px">
+        <div class="modal-card" style="max-width:480px">
           <div class="modal-header">
             <span class="modal-title">✏️ Editar jugador</span>
             <button class="modal-close" onclick="cerrarModal('modal-editar-jug')">✕</button>
@@ -1725,6 +1900,20 @@ async function renderGestionJugadores(equipoFiltro = '') {
             <div class="form-group">
               <label>Apellido y Nombres</label>
               <input id="edit-jug-nombre" type="text" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            </div>
+            <div style="display:flex;gap:12px">
+              <div class="form-group" style="flex:1">
+                <label>DNI</label>
+                <input id="edit-jug-dni" type="text" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Tipo de Socio</label>
+                <select id="edit-jug-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                  <option value="Activo">Activo</option>
+                  <option value="Pasivo">Pasivo</option>
+                  <option value="Colaborador">Colaborador</option>
+                </select>
+              </div>
             </div>
             <div style="display:flex;gap:16px">
               <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
@@ -1773,9 +1962,12 @@ async function renderGestionJugadores(equipoFiltro = '') {
 }
 
 function abrirModalAltaJugador() {
-  document.getElementById('alta-nombre').value = '';
-  document.getElementById('alta-mas35').checked = false;
-  document.getElementById('alta-ic').checked = false;
+  document.getElementById('alta-nombre').value   = '';
+  document.getElementById('alta-dni').value      = '';
+  document.getElementById('alta-fecha-nac').value = '';
+  document.getElementById('alta-tipo-socio').value = 'Activo';
+  document.getElementById('alta-mas35').checked  = false;
+  document.getElementById('alta-ic').checked     = false;
   abrirModal('modal-alta-jug');
 }
 
@@ -1786,9 +1978,12 @@ async function confirmarAltaJugador() {
   if (!nombre)   { showToast('Ingresá el nombre del jugador', 'error'); return; }
   const btn = document.getElementById('btn-alta-jug');
   btn.disabled = true; btn.textContent = 'Guardando...';
+  const dni      = document.getElementById('alta-dni')?.value?.trim() || '';
+  const fechaNac = document.getElementById('alta-fecha-nac')?.value || '';
+  const tipoSocio = document.getElementById('alta-tipo-socio')?.value || 'Activo';
   try {
     const data = await api('altaJugador', {
-      equipoId, nombre,
+      equipoId, nombre, dni, fechaNac, tipoSocio,
       mas35: String(document.getElementById('alta-mas35').checked),
       ic:    String(document.getElementById('alta-ic').checked),
     });
@@ -1801,9 +1996,11 @@ async function confirmarAltaJugador() {
   btn.disabled = false; btn.textContent = '➕ Dar de alta';
 }
 
-function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic) {
-  document.getElementById('edit-jug-id').value     = id;
-  document.getElementById('edit-jug-nombre').value = nombre;
+function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio) {
+  document.getElementById('edit-jug-id').value      = id;
+  document.getElementById('edit-jug-nombre').value  = nombre;
+  document.getElementById('edit-jug-dni').value     = dni || '';
+  document.getElementById('edit-jug-tipo-socio').value = tipoSocio || 'Activo';
   document.getElementById('edit-jug-mas35').checked = mas35 === true || mas35 === 'true';
   document.getElementById('edit-jug-ic').checked    = ic    === true || ic    === 'true';
   abrirModal('modal-editar-jug');
@@ -1813,9 +2010,11 @@ async function confirmarEditarJugador() {
   const jugadorId = document.getElementById('edit-jug-id').value;
   const nombre    = document.getElementById('edit-jug-nombre').value.trim();
   if (!nombre) { showToast('Ingresá el nombre', 'error'); return; }
+  const dni      = document.getElementById('edit-jug-dni')?.value?.trim() || '';
+  const tipoSocio = document.getElementById('edit-jug-tipo-socio')?.value || 'Activo';
   try {
     const data = await api('editarJugador', {
-      jugadorId, nombre,
+      jugadorId, nombre, dni, tipoSocio,
       mas35: String(document.getElementById('edit-jug-mas35').checked),
       ic:    String(document.getElementById('edit-jug-ic').checked),
     });
@@ -1847,11 +2046,23 @@ async function confirmarTraspaso() {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-async function confirmarBajaJugador(jugadorId, nombre) {
-  if (!confirm(`¿Dar de BAJA a ${nombre}? Esta acción no se puede deshacer.`)) return;
+function abrirModalBajaJugador(jugadorId, nombre) {
+  document.getElementById('baja-jug-id').value   = jugadorId;
+  document.getElementById('baja-jug-nombre').textContent = nombre;
+  document.getElementById('baja-ultimo-mes').value = '';
+  document.getElementById('baja-motivo').value     = '';
+  abrirModal('modal-baja-jug');
+}
+
+async function confirmarBajaJugador() {
+  const jugadorId     = document.getElementById('baja-jug-id').value;
+  const ultimoMesPago = document.getElementById('baja-ultimo-mes').value;
+  const motivo        = document.getElementById('baja-motivo').value.trim();
+  if (!ultimoMesPago) { showToast('Indicá el último mes pago', 'error'); return; }
   try {
-    const data = await api('bajaJugador', { jugadorId });
+    const data = await api('bajaJugador', { jugadorId, ultimoMesPago, motivo });
     if (data.ok) {
+      cerrarModal('modal-baja-jug');
       showToast('Jugador dado de baja ✅', 'success');
       renderGestionJugadores();
     } else throw new Error(data.msg);
@@ -2258,6 +2469,619 @@ ${paginaEquipo(partido.visitante, jugadoresVisitante, false)}
   }
   win.document.write(html);
   win.document.close();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HABILITAR / INHABILITAR MANUAL (admin)
+// ══════════════════════════════════════════════════════════════════
+async function habilitarJugador(jugadorId, nombre) {
+  if (!confirm(`¿Habilitar manualmente a ${nombre}?\n(Esto ignorará el estado de pagos y estudios médicos.)`)) return;
+  try {
+    const data = await api('habilitarJugador', { jugadorId });
+    if (data.ok) { showToast('Jugador habilitado manualmente ✅', 'success'); renderGestionJugadores(); }
+    else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function inhabilitarJugador(jugadorId, nombre) {
+  if (!confirm(`¿Inhabilitar manualmente a ${nombre}?`)) return;
+  try {
+    const data = await api('inhabilitarJugador', { jugadorId });
+    if (data.ok) { showToast('Jugador inhabilitado manualmente ⛔', 'info'); renderGestionJugadores(); }
+    else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function limpiarHabManual(jugadorId) {
+  try {
+    const data = await api('resetHabManual', { jugadorId });
+    if (data.ok) { showToast('Habilitación manual removida — vuelve al estado automático', 'info'); renderGestionJugadores(); }
+    else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HISTORIAL DE BAJAS (admin)
+// ══════════════════════════════════════════════════════════════════
+async function renderHistorialBajas() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando historial...</div>';
+  try {
+    const data = await api('getHistorialBajas');
+    if (!data.ok) throw new Error(data.msg);
+    const h = data.historial;
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="card-title" style="margin:0">📋 Historial de Bajas</div>
+          <button class="btn-sm btn-ver" onclick="renderGestionJugadores()">← Volver a Jugadores</button>
+        </div>
+        ${h.length === 0
+          ? '<div class="empty"><div class="empty-icon">📋</div>No hay bajas registradas.</div>'
+          : `<div class="tabla-wrapper"><table>
+              <thead><tr><th>Jugador</th><th>Equipo</th><th>Fecha Baja</th><th>Último mes pago</th><th>Motivo</th></tr></thead>
+              <tbody>
+                ${h.map(x => `<tr>
+                  <td class="jugador-nombre">${x.nombre}</td>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${x.equipoId.replace(/_/g,' ')}</td>
+                  <td style="font-size:0.78rem">${x.fechaBaja}</td>
+                  <td style="font-size:0.78rem;font-weight:600">${x.ultimoMesPago||'—'}</td>
+                  <td style="font-size:0.78rem;color:var(--gris3)">${x.motivo||'—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>`}
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SOLICITUDES DE ALTA (admin)
+// ══════════════════════════════════════════════════════════════════
+async function renderSolicitudesAlta() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando solicitudes...</div>';
+  try {
+    const data = await api('getSolicitudesAlta');
+    if (!data.ok) throw new Error(data.msg);
+    const sols = data.solicitudes;
+    const pendientes = sols.filter(s => s.estado === 'Pendiente');
+    const resueltas  = sols.filter(s => s.estado !== 'Pendiente');
+
+    cnt.innerHTML = `
+      <div class="card">
+        <div class="card-title">📥 Solicitudes de Alta de Jugadores</div>
+        ${pendientes.length === 0
+          ? '<div class="empty"><div class="empty-icon">✅</div>No hay solicitudes pendientes.</div>'
+          : pendientes.map(s => renderTarjetaSolicitud(s, true)).join('')}
+        ${resueltas.length > 0 ? `
+          <div style="margin-top:24px">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--gris3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--gris1)">
+              Historial de solicitudes resueltas
+            </div>
+            ${resueltas.map(s => renderTarjetaSolicitud(s, false)).join('')}
+          </div>` : ''}
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
+  }
+}
+
+function renderTarjetaSolicitud(s, esPendiente) {
+  const estadoColor = {
+    'Pendiente':  { bg:'#fef9c3', color:'#854d0e', icono:'⏳' },
+    'Aprobada':   { bg:'#dcfce7', color:'#15803d', icono:'✅' },
+    'Rechazada':  { bg:'#fee2e2', color:'#b91c1c', icono:'❌' },
+    'Observada':  { bg:'#e0f2fe', color:'#0369a1', icono:'📝' },
+  }[s.estado] || { bg:'#f3f4f6', color:'#374151', icono:'?' };
+
+  return `
+    <div style="background:var(--gris0);border:1.5px solid var(--gris1);border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:700;font-size:1rem;color:var(--texto)">${s.nombre}</div>
+          <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
+            🏟️ ${s.nombreEquipo} · DNI: ${s.dni} · Nac: ${s.fechaNac}
+          </div>
+          <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
+            👤 ${s.tipoSocio} · Título: ${s.tipoTitulo||'—'}
+            ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">+35</span>' : ''}
+            ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
+          </div>
+          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}</div>
+          ${s.obsAdmin ? `<div style="font-size:0.8rem;color:var(--rojo);margin-top:4px;padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
+          ${s.driveFolder ? `<div style="margin-top:6px"><a href="${s.driveFolder}" target="_blank" style="font-size:0.78rem;color:var(--azul2);text-decoration:none">📁 Ver archivos en Drive</a></div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;background:${estadoColor.bg};color:${estadoColor.color}">
+            ${estadoColor.icono} ${s.estado}
+          </span>
+          ${esPendiente ? `
+            <button class="btn-sm btn-aprobar" onclick="resolverSolicitud('${s.id}','Aprobada')">✅ Aprobar</button>
+            <button class="btn-sm" style="background:#0ea5e9;color:white" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Observada')">📝 Observar</button>
+            <button class="btn-sm btn-rechazar" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Rechazada')">❌ Rechazar</button>
+          ` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function resolverSolicitud(id, decision, obs) {
+  if (decision === 'Aprobada') {
+    if (!confirm(`¿Aprobar la solicitud y DAR DE ALTA al jugador automáticamente?`)) return;
+  }
+  try {
+    const data = await api('resolverSolicitudAlta', { id, decision, obs: obs||'' });
+    if (data.ok) {
+      showToast(data.msg, 'success');
+      renderSolicitudesAlta();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function abrirModalObservacion(solicitudId, nombre, decision) {
+  APP._solicitudPendiente = { id: solicitudId, decision };
+  document.getElementById('obs-sol-titulo').textContent =
+    decision === 'Rechazada' ? `❌ Rechazar solicitud — ${nombre}` : `📝 Observar solicitud — ${nombre}`;
+  document.getElementById('obs-sol-texto').value = '';
+  document.getElementById('obs-sol-label').textContent =
+    decision === 'Rechazada' ? 'Motivo de rechazo (requerido)' : 'Aclaración requerida al delegado';
+  abrirModal('modal-obs-solicitud');
+}
+
+async function confirmarObservacion() {
+  const obs = document.getElementById('obs-sol-texto').value.trim();
+  if (!obs) { showToast('Ingresá la observación', 'error'); return; }
+  const { id, decision } = APP._solicitudPendiente || {};
+  if (!id) return;
+  cerrarModal('modal-obs-solicitud');
+  await resolverSolicitud(id, decision, obs);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN (admin) — Cuotas
+// ══════════════════════════════════════════════════════════════════
+async function renderConfiguracion() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando configuración...</div>';
+  try {
+    const data = await api('getParametros');
+    if (!data.ok) throw new Error(data.msg);
+    cnt.innerHTML = `
+      <div class="card" style="max-width:520px">
+        <div class="card-title">⚙️ Configuración General</div>
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div>
+            <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+              💰 Valores de cuotas
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <div class="form-group" style="flex:1;min-width:180px">
+                <label>Cuota Social ($)</label>
+                <input id="cfg-cuota-social" type="number" min="0" value="${data.cuotaSocial||0}"
+                  style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:1rem">
+              </div>
+              <div class="form-group" style="flex:1;min-width:180px">
+                <label>Cuota Deportiva ($)</label>
+                <input id="cfg-cuota-deportiva" type="number" min="0" value="${data.cuotaDeportiva||0}"
+                  style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:1rem">
+              </div>
+            </div>
+            <div style="margin-top:4px;font-size:0.78rem;color:var(--gris3)">
+              Estos valores se muestran como recordatorio en la pantalla de comprobantes de cada delegado.
+            </div>
+            <button class="btn-sm btn-aprobar" style="margin-top:12px" onclick="guardarCuotas()">💾 Guardar valores</button>
+          </div>
+
+          <div>
+            <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+              📋 Historial de bajas
+            </div>
+            <p style="font-size:0.85rem;color:var(--gris3);margin-bottom:10px">Ver el registro histórico de todos los jugadores dados de baja.</p>
+            <button class="btn-sm btn-ver" onclick="renderHistorialBajas()">📋 Ver historial de bajas</button>
+          </div>
+
+          <div>
+            <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+              📧 Mail semanal automático
+            </div>
+            <p style="font-size:0.82rem;color:var(--gris3);line-height:1.6">
+              Para activar el envío automático del estado de habilitaciones a los delegados cada jueves a las 7AM:
+            </p>
+            <ol style="font-size:0.82rem;color:var(--gris3);margin-top:8px;padding-left:18px;line-height:2">
+              <li>Abrí el proyecto en <strong>Google Apps Script</strong></li>
+              <li>Menú → <strong>Triggers</strong> (ícono del reloj)</li>
+              <li>Clic en <strong>+ Agregar trigger</strong></li>
+              <li>Función: <code style="background:var(--gris0);padding:1px 5px;border-radius:4px">enviarResumenSemanal</code></li>
+              <li>Tipo de evento: <strong>Temporizador semanal</strong></li>
+              <li>Día: <strong>Jueves</strong>, hora: <strong>entre 6 y 7 AM</strong></li>
+              <li>Guardá → listo ✅</li>
+            </ol>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
+  }
+}
+
+async function guardarCuotas() {
+  const cuotaSocial    = document.getElementById('cfg-cuota-social')?.value;
+  const cuotaDeportiva = document.getElementById('cfg-cuota-deportiva')?.value;
+  try {
+    const data = await api('setCuotas', { cuotaSocial, cuotaDeportiva });
+    if (data.ok) showToast('Cuotas guardadas ✅', 'success');
+    else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GESTIÓN DELEGADO — Solicitudes, estudios médicos, fichas
+// ══════════════════════════════════════════════════════════════════
+async function renderGestionDelegado(subvista = 'menu') {
+  const cnt = document.getElementById('main-content');
+  
+  if (subvista === 'menu') {
+    cnt.innerHTML = `
+      <div class="card">
+        <div class="card-title">⚙️ Gestión — ${APP.equipo.nombre}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:4px">
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-alta')">
+            <div class="gestion-icon">➕</div>
+            <div class="gestion-title">Solicitar Alta</div>
+            <div class="gestion-desc">Solicitar el alta de un nuevo jugador/socio con documentación completa</div>
+          </div>
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('estudios-medicos')">
+            <div class="gestion-icon">🏥</div>
+            <div class="gestion-title">Estudios Médicos</div>
+            <div class="gestion-desc">Subir estudios médicos de jugadores y ver fechas de vencimiento</div>
+          </div>
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('mis-solicitudes')">
+            <div class="gestion-icon">📋</div>
+            <div class="gestion-title">Mis Solicitudes</div>
+            <div class="gestion-desc">Ver el estado de las solicitudes de alta enviadas</div>
+          </div>
+          
+          <div class="gestion-card" onclick="descargarFicha('medica')">
+            <div class="gestion-icon">📄</div>
+            <div class="gestion-title">Ficha Médica</div>
+            <div class="gestion-desc">Descargar ficha médica en blanco para completar</div>
+          </div>
+          
+          <div class="gestion-card" onclick="descargarFicha('inscripcion')">
+            <div class="gestion-icon">📝</div>
+            <div class="gestion-title">Ficha de Inscripción</div>
+            <div class="gestion-desc">Descargar ficha de solicitud de ingreso como socio</div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (subvista === 'solicitud-alta') {
+    renderFormularioSolicitudAlta(cnt);
+    return;
+  }
+
+  if (subvista === 'estudios-medicos') {
+    await renderEstudiosMedicosDelegado(cnt);
+    return;
+  }
+
+  if (subvista === 'mis-solicitudes') {
+    await renderMisSolicitudes(cnt);
+    return;
+  }
+}
+
+function renderFormularioSolicitudAlta(cnt) {
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+        <div class="card-title" style="margin:0">➕ Solicitud de Alta de Nuevo Jugador</div>
+      </div>
+      
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
+        <strong>Documentación requerida:</strong><br>
+        • Nombre completo y DNI<br>
+        • Ficha médica completa con firma de cardiólogo + ergometría + electrocardiograma (para Senior o mayores de 40, debe renovarse anualmente)<br>
+        • Ficha de Inscripción con foto 4x4<br>
+        • Fotocopia de título autenticada, o Certificado de título en trámite + analítico de materias aprobadas<br>
+        • Si es cónyuge de un profesional con título: libreta de familia
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Datos personales -->
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+          👤 Datos personales
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:200px">
+            <label>Apellido y Nombres *</label>
+            <input id="sol-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+          </div>
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>DNI *</label>
+            <input id="sol-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+          <div class="form-group" style="flex:1;min-width:150px">
+            <label>Fecha de Nacimiento *</label>
+            <input id="sol-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:180px">
+            <label>Tipo de Socio *</label>
+            <select id="sol-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              <option value="Activo">Activo (profesional con título)</option>
+              <option value="Pasivo">Pasivo (solo cuota social)</option>
+              <option value="Colaborador">Colaborador</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:200px">
+            <label>Tipo de Título / Acreditación</label>
+            <select id="sol-tipo-titulo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              <option value="Título original/copia autenticada">Título original / copia autenticada</option>
+              <option value="Certificado título en trámite + analítico">Certificado título en trámite + analítico</option>
+              <option value="Libreta de familia (cónyuge de profesional)">Libreta de familia (cónyuge de profesional)</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+            <input type="checkbox" id="sol-mas35"> Mayor de 35
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+            <input type="checkbox" id="sol-ic"> Intercategoría
+          </label>
+        </div>
+
+        <!-- Archivos -->
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-top:8px">
+          📎 Archivos adjuntos
+        </div>
+        
+        ${['ficha-medica', 'ficha-inscripcion', 'titulo', 'extra'].map((tipo, i) => {
+          const labels = {
+            'ficha-medica':     { label:'Ficha Médica (con estudios, ergo y electro) *', icon:'🏥' },
+            'ficha-inscripcion':{ label:'Ficha de Inscripción (con foto 4x4) *',          icon:'📝' },
+            'titulo':           { label:'Título / Certificado en trámite + analítico *',  icon:'🎓' },
+            'extra':            { label:'Documento adicional (libreta, otro)',             icon:'📁' },
+          };
+          const l = labels[tipo];
+          return `
+          <div style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:0.83rem;font-weight:600;color:var(--texto)">${l.icon} ${l.label}</span>
+              <span id="file-status-${tipo}" style="font-size:0.75rem;color:var(--gris3)">Sin archivo</span>
+            </div>
+            <label style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--azul2);color:white;border-radius:7px;cursor:pointer;font-size:0.82rem;font-weight:600">
+              📎 Seleccionar archivo
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleAdjunto(this,'${tipo}')">
+            </label>
+          </div>`;
+        }).join('')}
+
+        <button class="btn-sm btn-aprobar" style="padding:12px 24px;font-size:0.95rem;margin-top:8px" onclick="enviarSolicitudAlta()" id="btn-enviar-solicitud">
+          📤 Enviar solicitud
+        </button>
+      </div>
+    </div>`;
+
+  // Inicializar mapa de archivos adjuntos
+  window._adjuntos = {};
+}
+
+async function handleAdjunto(input, tipo) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { showToast('El archivo no puede superar 10MB', 'error'); return; }
+  const statusEl = document.getElementById('file-status-' + tipo);
+  statusEl.textContent = '⏳ Leyendo...';
+  const base64 = await fileToBase64(file);
+  window._adjuntos[tipo] = { nombre: file.name, tipo: file.type, data: base64 };
+  statusEl.textContent = '✅ ' + file.name;
+  statusEl.style.color = 'var(--verde)';
+}
+
+async function enviarSolicitudAlta() {
+  const nombre    = document.getElementById('sol-nombre')?.value?.trim().toUpperCase();
+  const dni       = document.getElementById('sol-dni')?.value?.trim();
+  const fechaNac  = document.getElementById('sol-fecha-nac')?.value;
+  const tipoSocio = document.getElementById('sol-tipo-socio')?.value;
+  const tipoTitulo = document.getElementById('sol-tipo-titulo')?.value;
+  const mas35     = document.getElementById('sol-mas35')?.checked;
+  const ic        = document.getElementById('sol-ic')?.checked;
+
+  if (!nombre || !dni || !fechaNac) { showToast('Completá nombre, DNI y fecha de nacimiento', 'error'); return; }
+
+  const adjuntos = Object.values(window._adjuntos || {});
+  if (adjuntos.length === 0) { showToast('Adjuntá al menos un archivo', 'error'); return; }
+
+  const btn = document.getElementById('btn-enviar-solicitud');
+  btn.disabled = true; btn.textContent = '⏳ Enviando...';
+
+  try {
+    const data = await apiPost('solicitarAlta', {
+      equipoId:    APP.equipo.id,
+      nombreEquipo: APP.equipo.nombre,
+      nombre, dni, fechaNac, tipoSocio, tipoTitulo,
+      mas35: String(mas35),
+      ic:    String(ic),
+      archivos: JSON.stringify(adjuntos),
+    });
+    if (data.ok) {
+      showToast('¡Solicitud enviada! El administrador la revisará pronto ✅', 'success');
+      renderGestionDelegado('menu');
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '📤 Enviar solicitud';
+  }
+}
+
+async function renderEstudiosMedicosDelegado(cnt) {
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando estudios...</div>';
+  try {
+    const [dataJug, dataEM] = await Promise.all([
+      api('getJugadores', { equipoId: APP.equipo.id }),
+      api('getEstudiosMedicos', { equipoId: APP.equipo.id }),
+    ]);
+    const jugadores = dataJug.ok ? dataJug.jugadores : [];
+    const estudios  = dataEM.ok ? dataEM.estudios : [];
+    const emMap = {};
+    estudios.forEach(e => { emMap[e.jugadorId] = e; });
+
+    const esSeniorEquipo = (APP.equipo.cat||'').toLowerCase().includes('senior');
+
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+          <div class="card-title" style="margin:0">🏥 Estudios Médicos — ${APP.equipo.nombre}</div>
+        </div>
+        <div style="font-size:0.8rem;color:var(--gris3);margin-bottom:16px;padding:10px;background:var(--gris0);border-radius:8px">
+          ℹ️ <strong>Senior / mayores de 40:</strong> los estudios deben renovarse anualmente.<br>
+          <strong>Resto de categorías:</strong> solo al ingreso.
+        </div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>Jugador</th><th>Tipo</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
+            <tbody>
+              ${jugadores.map(j => {
+                const em = emMap[j.id];
+                const esSeniorJug = esSeniorEquipo; // podría también verificar edad si tenemos FechaNac
+                const estadoColor = em?.estado === 'Vigente'
+                  ? 'color:#15803d;font-weight:700'
+                  : 'color:#b91c1c;font-weight:700';
+                return `<tr>
+                  <td class="jugador-nombre">${j.nombre}</td>
+                  <td style="font-size:0.75rem">${esSeniorJug ? 'Senior (anual)' : 'Al ingreso'}</td>
+                  <td style="font-size:0.78rem">${em?.fechaEstudio || '—'}</td>
+                  <td style="${em ? estadoColor : 'color:var(--gris2)'}">${em?.estado || 'No presentado'}</td>
+                  <td style="font-size:0.78rem">${em?.vencimiento || (em && !esSeniorJug ? 'Sin venc.' : '—')}</td>
+                  <td>
+                    <button class="btn-sm btn-ver" onclick="abrirModalSubirEstudio('${j.id}','${j.nombre.replace(/'/g,"\'")}',${esSeniorJug})">
+                      📎 ${em ? 'Actualizar' : 'Subir'}
+                    </button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
+  }
+}
+
+function abrirModalSubirEstudio(jugadorId, jugadorNombre, esSenior) {
+  APP.modalJugadorId     = jugadorId;
+  APP.modalJugadorNombre = jugadorNombre;
+  APP._estudioEsSenior   = esSenior;
+  document.getElementById('estudio-jugador').textContent = jugadorNombre;
+  document.getElementById('estudio-tipo').textContent =
+    esSenior ? 'Senior — se renovará anualmente' : 'Al ingreso — sin vencimiento';
+  APP.archivoEstudio = null;
+  document.getElementById('estudio-file-status').textContent = 'Sin archivo seleccionado';
+  document.getElementById('estudio-file-status').style.color = 'var(--gris3)';
+  abrirModal('modal-subir-estudio');
+}
+
+async function handleEstudioFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { showToast('Archivo demasiado grande (máx 10MB)', 'error'); return; }
+  APP.archivoEstudio = file;
+  document.getElementById('estudio-file-status').textContent = '✅ ' + file.name;
+  document.getElementById('estudio-file-status').style.color = 'var(--verde)';
+}
+
+async function confirmarSubirEstudio() {
+  if (!APP.archivoEstudio) { showToast('Seleccioná un archivo', 'error'); return; }
+  const btn = document.getElementById('btn-confirmar-estudio');
+  btn.disabled = true; btn.textContent = 'Subiendo...';
+  try {
+    const base64 = await fileToBase64(APP.archivoEstudio);
+    const data = await apiPost('subirEstudioMedico', {
+      jugadorId:    APP.modalJugadorId,
+      equipoId:     APP.equipo.id,
+      esSenior:     String(APP._estudioEsSenior),
+      archivo:      base64,
+      nombreArchivo: APP.archivoEstudio.name,
+      tipoArchivo:  APP.archivoEstudio.type,
+    });
+    if (data.ok) {
+      cerrarModal('modal-subir-estudio');
+      showToast('Estudio médico registrado ✅', 'success');
+      renderGestionDelegado('estudios-medicos');
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Subir estudio';
+}
+
+async function renderMisSolicitudes(cnt) {
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await api('getSolicitudesAlta', { equipoId: APP.equipo.id });
+    if (!data.ok) throw new Error(data.msg);
+    const sols = data.solicitudes;
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+          <div class="card-title" style="margin:0">📋 Mis Solicitudes de Alta</div>
+        </div>
+        ${sols.length === 0
+          ? '<div class="empty"><div class="empty-icon">📋</div>No hay solicitudes enviadas aún.</div>'
+          : sols.map(s => {
+              const estadoColor = {
+                'Pendiente':  '#d97706', 'Aprobada': '#15803d',
+                'Rechazada':  '#dc2626', 'Observada': '#0369a1',
+              }[s.estado] || '#64748b';
+              return `<div style="border:1.5px solid var(--gris1);border-radius:10px;padding:14px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                  <div>
+                    <div style="font-weight:700">${s.nombre}</div>
+                    <div style="font-size:0.78rem;color:var(--gris3)">DNI: ${s.dni} · ${s.fechaSolicitud}</div>
+                    ${s.obsAdmin ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--rojo);padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
+                  </div>
+                  <span style="padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.8rem;background:${estadoColor}20;color:${estadoColor}">${s.estado}</span>
+                </div>
+              </div>`;
+            }).join('')}
+      </div>`;
+  } catch(e) {
+    cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
+  }
+}
+
+function descargarFicha(tipo) {
+  // Las fichas son los PDFs adjuntos — abrimos modal para descargarlos
+  abrirModal('modal-fichas');
+  const body = document.getElementById('fichas-body');
+  if (tipo === 'medica') {
+    body.innerHTML = `
+      <p style="font-size:0.88rem;color:var(--gris3);margin-bottom:16px">Descargá la ficha médica, completala con la firma del cardiólogo y adjuntala en la solicitud de alta.</p>
+      <a href="${CONFIG.URL_FICHA_MEDICA || '#'}" target="_blank" download
+        style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:var(--azul);color:white;border-radius:8px;text-decoration:none;font-weight:600">
+        ⬇️ Descargar Ficha Médica (PDF)
+      </a>`;
+  } else {
+    body.innerHTML = `
+      <p style="font-size:0.88rem;color:var(--gris3);margin-bottom:16px">Descargá la ficha de inscripción, completala con foto 4x4 y adjuntala en la solicitud de alta.</p>
+      <a href="${CONFIG.URL_FICHA_INSCRIPCION || '#'}" target="_blank" download
+        style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:var(--azul);color:white;border-radius:8px;text-decoration:none;font-weight:600">
+        ⬇️ Descargar Ficha de Inscripción (PDF)
+      </a>`;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
