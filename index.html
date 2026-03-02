@@ -1149,7 +1149,6 @@ function doLogout() {
   if (APP.token) {
     api('logout', { token: APP.token }).catch(() => {}); // fire and forget
   }
-  cacheClear(); // limpiar todo el cache local
   APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
     filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
@@ -1179,7 +1178,7 @@ function iniciarApp() {
   const tabs = document.getElementById('nav-tabs');
   if (APP.rol === 'delegado') {
     tabs.innerHTML = `
-      <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Mis Comprobantes</button>
+      <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Cargar Comprobantes</button>
       <button class="nav-tab" onclick="navTo('habilitaciones', this)">🏅 Habilitaciones</button>
       <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
       <button class="nav-tab" onclick="navTo('salud-delegado', this)">🏥 Salud</button>
@@ -1234,90 +1233,52 @@ function navTo(vista, btn) {
 // ══════════════════════════════════════════════════════════════════
 // VISTA DELEGADO
 // ══════════════════════════════════════════════════════════════════
-// ── CACHE LOCAL ──────────────────────────────────────────────────
-// Patrón "stale-while-revalidate": muestra datos cacheados al instante,
-// refresca desde el servidor en background.
-const CACHE_KEY_PREFIX = 'cdp_cache_';
-const CACHE_TTL = 10 * 60 * 1000; // 10 min max staleness
-
-function cacheGet(equipoId) {
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY_PREFIX + equipoId);
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    // Expirar cache viejo (> TTL)
-    if (Date.now() - cached._ts > CACHE_TTL) {
-      sessionStorage.removeItem(CACHE_KEY_PREFIX + equipoId);
-      return null;
-    }
-    return cached;
-  } catch(e) { return null; }
-}
-
-function cacheSet(equipoId, data) {
-  try {
-    data._ts = Date.now();
-    sessionStorage.setItem(CACHE_KEY_PREFIX + equipoId, JSON.stringify(data));
-  } catch(e) {} // silently fail if storage full
-}
-
-function cacheClear(equipoId) {
-  try {
-    if (equipoId) sessionStorage.removeItem(CACHE_KEY_PREFIX + equipoId);
-    else Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX)).forEach(k => sessionStorage.removeItem(k));
-  } catch(e) {}
-}
-
-// ── RENDER DELEGADO (con cache + Promise.all) ───────────────────
-async function renderDelegado(vista = 'mis-comprobantes', forceRefresh = false) {
+// ── RENDER DELEGADO ──────────────────────────────────────────────
+async function renderDelegado(vista = 'mis-comprobantes') {
   const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+
   const equipoId = APP.equipo.id;
+  console.log('[CDP] renderDelegado →', vista, 'equipoId:', equipoId);
 
-  // 1) Si hay cache válido y no es refresh forzado → mostrar al toque
-  const cached = !forceRefresh ? cacheGet(equipoId) : null;
-  if (cached) {
-    APP.jugadores = cached.jugadores || [];
-    APP.comprobantes = cached.comprobantes || [];
-    APP._parametrosCache = cached.parametros || null;
-    if (vista === 'historial') renderHistorial(cnt);
-    else renderMisComprobantes(cnt);
-    // Banner sutil mientras actualiza
-    const banner = document.createElement('div');
-    banner.id = 'refresh-banner';
-    banner.style.cssText = 'text-align:center;padding:6px;font-size:0.75rem;color:var(--gris3);background:var(--gris1);border-radius:8px;margin:8px 16px;opacity:0.8';
-    banner.textContent = '🔄 Actualizando datos...';
-    cnt.prepend(banner);
-  } else {
-    cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
-  }
-
-  // 2) Fetch en paralelo — 3 llamadas simultáneas en vez de secuenciales
   try {
-    const [dj, dc, dp] = await Promise.all([
-      api('getJugadores', { equipoId }),
-      api('getComprobantes', { equipoId }),
-      api('getParametros').catch(() => null)
-    ]);
+    // Llamadas SECUENCIALES (Apps Script throttlea llamadas simultáneas)
+    console.log('[CDP] Pidiendo jugadores...');
+    const dj = await apiConTimeout('getJugadores', { equipoId }, 20000);
     if (!dj.ok) throw new Error(dj.msg || 'Error al cargar jugadores');
     APP.jugadores = dj.jugadores || [];
+    console.log('[CDP] Jugadores OK:', APP.jugadores.length);
+
+    console.log('[CDP] Pidiendo comprobantes...');
+    const dc = await apiConTimeout('getComprobantes', { equipoId }, 20000);
     APP.comprobantes = (dc && dc.ok) ? dc.comprobantes : [];
-    APP._parametrosCache = (dp && dp.ok) ? dp : null;
+    console.log('[CDP] Comprobantes OK:', APP.comprobantes.length);
 
-    // Guardar en cache
-    cacheSet(equipoId, { jugadores: APP.jugadores, comprobantes: APP.comprobantes, parametros: APP._parametrosCache });
+    // Parámetros (no esencial, no frena si falla)
+    try {
+      const dp = await apiConTimeout('getParametros', {}, 10000);
+      APP._parametrosCache = (dp && dp.ok) ? dp : null;
+    } catch(ep) {
+      console.warn('[CDP] getParametros falló (no crítico):', ep.message);
+      APP._parametrosCache = null;
+    }
 
-    // Render con datos frescos
     if (vista === 'historial') renderHistorial(cnt);
     else renderMisComprobantes(cnt);
   } catch(e) {
-    if (cached) {
-      // Tenemos cache → dejar vista actual + aviso
-      const b = document.getElementById('refresh-banner');
-      if (b) { b.style.background='#fff1f2'; b.style.color='var(--rojo)'; b.textContent='⚠️ No se pudo actualizar. Mostrando datos guardados.'; }
-    } else {
-      cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}</div>`;
-    }
+    console.error('[CDP] Error en renderDelegado:', e);
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}<br><br><button class="btn-primary" onclick="renderDelegado()">🔄 Reintentar</button></div>`;
   }
+}
+
+// API con timeout para evitar que se quede colgado
+function apiConTimeout(accion, datos, ms) {
+  return Promise.race([
+    api(accion, datos),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado (' + accion + ')')), ms)
+    )
+  ]);
 }
 
 async function renderMisComprobantes(cnt) {
@@ -1834,8 +1795,7 @@ async function confirmarCarga() {
     if (data.ok) {
       cerrarModal('modal-cargar');
       showToast('¡Comprobante cargado correctamente!', 'success');
-      cacheClear(APP.equipo.id);
-      renderDelegado('mis-comprobantes', true);
+      renderDelegado();
     } else {
       throw new Error(data.msg || 'Error al cargar');
     }
@@ -1870,7 +1830,7 @@ async function confirmarRechazo() {
       cerrarModal('modal-rechazar');
       showToast('Comprobante rechazado', 'info');
       if (APP.rol === 'admin') renderTodosComprobantes();
-      else { cacheClear(APP.equipo.id); renderDelegado('mis-comprobantes', true); }
+      else renderDelegado();
     } else throw new Error(data.msg);
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
