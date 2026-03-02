@@ -417,6 +417,7 @@
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   .empty { text-align: center; padding: 48px; color: var(--gris2); font-size: 0.9rem; }
   .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
 
@@ -1148,6 +1149,7 @@ function doLogout() {
   if (APP.token) {
     api('logout', { token: APP.token }).catch(() => {}); // fire and forget
   }
+  cacheClear(); // limpiar todo el cache local
   APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
     filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
@@ -1232,25 +1234,94 @@ function navTo(vista, btn) {
 // ══════════════════════════════════════════════════════════════════
 // VISTA DELEGADO
 // ══════════════════════════════════════════════════════════════════
-async function renderDelegado(vista = 'mis-comprobantes') {
-  const cnt = document.getElementById('main-content');
-  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+// ── CACHE LOCAL ──────────────────────────────────────────────────
+// Patrón "stale-while-revalidate": muestra datos cacheados al instante,
+// refresca desde el servidor en background.
+const CACHE_KEY_PREFIX = 'cdp_cache_';
+const CACHE_TTL = 10 * 60 * 1000; // 10 min max staleness
 
+function cacheGet(equipoId) {
   try {
-    // Un solo llamado al backend: jugadores + comprobantes + parámetros
-    const data = await api('getDelegadoInit', { equipoId: APP.equipo.id });
+    const raw = sessionStorage.getItem(CACHE_KEY_PREFIX + equipoId);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    // Expirar cache viejo (> TTL)
+    if (Date.now() - cached._ts > CACHE_TTL) {
+      sessionStorage.removeItem(CACHE_KEY_PREFIX + equipoId);
+      return null;
+    }
+    return cached;
+  } catch(e) { return null; }
+}
+
+function cacheSet(equipoId, data) {
+  try {
+    data._ts = Date.now();
+    sessionStorage.setItem(CACHE_KEY_PREFIX + equipoId, JSON.stringify(data));
+  } catch(e) {} // silently fail if storage full
+}
+
+function cacheClear(equipoId) {
+  try {
+    if (equipoId) sessionStorage.removeItem(CACHE_KEY_PREFIX + equipoId);
+    else Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX)).forEach(k => sessionStorage.removeItem(k));
+  } catch(e) {}
+}
+
+// ── RENDER DELEGADO (con cache) ─────────────────────────────────
+async function renderDelegado(vista = 'mis-comprobantes', forceRefresh = false) {
+  const cnt = document.getElementById('main-content');
+  const equipoId = APP.equipo.id;
+
+  // 1) Intentar mostrar desde cache inmediatamente (si no es refresh forzado)
+  const cached = !forceRefresh ? cacheGet(equipoId) : null;
+  if (cached) {
+    APP.jugadores = cached.jugadores || [];
+    APP.comprobantes = cached.comprobantes || [];
+    APP._parametrosCache = cached.parametros || null;
+    if (vista === 'historial') renderHistorial(cnt);
+    else renderMisComprobantes(cnt);
+    // Mostrar indicador sutil de actualización
+    const refreshBanner = document.createElement('div');
+    refreshBanner.id = 'refresh-banner';
+    refreshBanner.style.cssText = 'text-align:center;padding:6px;font-size:0.75rem;color:var(--gris3);background:var(--gris1);border-radius:8px;margin:8px 16px;opacity:0.8';
+    refreshBanner.innerHTML = '🔄 Actualizando datos...';
+    cnt.prepend(refreshBanner);
+  } else {
+    // Sin cache: skeleton loading
+    cnt.innerHTML = `
+      <div style="padding:20px">
+        <div style="background:#e5e7eb;border-radius:12px;height:100px;margin-bottom:16px;animation:pulse 1.5s ease-in-out infinite"></div>
+        <div style="background:#e5e7eb;border-radius:12px;height:200px;animation:pulse 1.5s ease-in-out infinite"></div>
+      </div>`;
+  }
+
+  // 2) Fetch fresh data en background
+  try {
+    const data = await api('getDelegadoInit', { equipoId });
     if (!data.ok) throw new Error(data.msg);
     APP.jugadores = data.jugadores || [];
     APP.comprobantes = data.comprobantes || [];
-    APP._parametrosCache = data.parametros || null; // cache para no llamar getParametros después
+    APP._parametrosCache = data.parametros || null;
 
-    if (vista === 'historial') {
-      renderHistorial(cnt);
-    } else {
-      renderMisComprobantes(cnt);
-    }
+    // Guardar en cache para próxima vez
+    cacheSet(equipoId, { jugadores: APP.jugadores, comprobantes: APP.comprobantes, parametros: APP._parametrosCache });
+
+    // Re-render con datos frescos
+    if (vista === 'historial') renderHistorial(cnt);
+    else renderMisComprobantes(cnt);
   } catch(e) {
-    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}</div>`;
+    // Si teníamos cache, dejar lo que ya se muestra + aviso
+    if (cached) {
+      const banner = document.getElementById('refresh-banner');
+      if (banner) {
+        banner.style.background = '#fff1f2';
+        banner.style.color = 'var(--rojo)';
+        banner.innerHTML = '⚠️ No se pudo actualizar. Mostrando última versión guardada.';
+      }
+    } else {
+      cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}</div>`;
+    }
   }
 }
 
@@ -1768,7 +1839,8 @@ async function confirmarCarga() {
     if (data.ok) {
       cerrarModal('modal-cargar');
       showToast('¡Comprobante cargado correctamente!', 'success');
-      renderDelegado();
+      cacheClear(APP.equipo.id);
+      renderDelegado('mis-comprobantes', true);
     } else {
       throw new Error(data.msg || 'Error al cargar');
     }
@@ -1803,7 +1875,7 @@ async function confirmarRechazo() {
       cerrarModal('modal-rechazar');
       showToast('Comprobante rechazado', 'info');
       if (APP.rol === 'admin') renderTodosComprobantes();
-      else renderDelegado();
+      else { cacheClear(APP.equipo.id); renderDelegado('mis-comprobantes', true); }
     } else throw new Error(data.msg);
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
