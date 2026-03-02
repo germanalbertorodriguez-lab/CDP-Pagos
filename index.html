@@ -1035,27 +1035,28 @@ function setLoginMode(modo) {
 
 async function cargarEquiposSelect() {
   const sel = document.getElementById('login-equipo');
-  sel.innerHTML = '<option value="">Cargando equipos...</option>';
 
-  // Intentar cargar del Sheet primero
-  let equipos = null;
+  // Usar fallback inmediatamente para que el login esté disponible al instante
+  let equipos = EQUIPOS_FALLBACK;
+  APP.equipos = equipos;
+  poblarSelectEquipos(sel, equipos);
+
+  // Intentar actualizar desde el Sheet en background (no bloquea)
   try {
     const data = await api('getEquipos');
     if (data.ok && data.equipos && data.equipos.length > 0) {
       equipos = data.equipos;
       APP.equipos = equipos;
+      const selectedVal = sel.value; // preservar selección actual
+      poblarSelectEquipos(sel, equipos);
+      if (selectedVal) sel.value = selectedVal;
     }
   } catch(e) {
-    console.warn('No se pudieron cargar equipos del Sheet, usando fallback local.');
+    console.warn('[CDP] No se pudieron cargar equipos del Sheet, usando fallback local.');
   }
+}
 
-  // Si falló, usar fallback
-  if (!equipos) {
-    equipos = EQUIPOS_FALLBACK;
-    APP.equipos = equipos;
-  }
-
-  // Poblar el select
+function poblarSelectEquipos(sel, equipos) {
   sel.innerHTML = '<option value="">Seleccioná tu equipo...</option>';
   const libres = equipos.filter(e => e.cat === 'Libres');
   const senior = equipos.filter(e => e.cat === 'Senior');
@@ -1233,15 +1234,15 @@ function navTo(vista, btn) {
 // ══════════════════════════════════════════════════════════════════
 async function renderDelegado(vista = 'mis-comprobantes') {
   const cnt = document.getElementById('main-content');
-  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
 
   try {
-    const data = await api('getJugadores', { equipoId: APP.equipo.id });
+    // Un solo llamado al backend: jugadores + comprobantes + parámetros
+    const data = await api('getDelegadoInit', { equipoId: APP.equipo.id });
     if (!data.ok) throw new Error(data.msg);
-    APP.jugadores = data.jugadores;
-
-    const dataC = await api('getComprobantes', { equipoId: APP.equipo.id });
-    APP.comprobantes = dataC.ok ? dataC.comprobantes : [];
+    APP.jugadores = data.jugadores || [];
+    APP.comprobantes = data.comprobantes || [];
+    APP._parametrosCache = data.parametros || null; // cache para no llamar getParametros después
 
     if (vista === 'historial') {
       renderHistorial(cnt);
@@ -1279,10 +1280,10 @@ async function renderMisComprobantes(cnt) {
   // Determinar badge según categoría: Senior → +50, Libres → +35
   const labelMas = getLabelMas(eq.cat);
 
-  // Cargar cuotas para mostrar recordatorio
+  // Cargar cuotas para mostrar recordatorio (usar cache si disponible)
   let cuotaInfo = '';
   try {
-    const paramData = await api('getParametros');
+    const paramData = APP._parametrosCache || await api('getParametros');
     if (paramData.ok && (paramData.cuotaSocial || paramData.cuotaDeportiva)) {
       const cSocial = Number(paramData.cuotaSocial || 0);
       const cDeportiva = Number(paramData.cuotaDeportiva || 0);
@@ -1918,10 +1919,14 @@ async function renderHabilitaciones() {
             <tbody>
               ${jugadores.map((j,i) => {
                 const est = estadoColor[j.estado] || { bg:'#f3f4f6', color:'#374151', icono:'❓' };
+                const tipoS = (j.tipoSocio||'Activo').toUpperCase();
+                const tipoBg = tipoS === 'PASIVO' ? '#ede9fe' : tipoS.includes('COL') ? '#fff7ed' : '#f0f9ff';
+                const tipoColor = tipoS === 'PASIVO' ? '#6d28d9' : tipoS.includes('COL') ? '#c2410c' : '#0369a1';
                 const badges = [
+                  '<span style="font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:4px;background:' + tipoBg + ';color:' + tipoColor + '">' + (j.tipoSocio||'Activo') + '</span>',
                   j.mas35 ? '<span class="badge-mas35">' + habLabelMas + '</span>' : '',
                   j.ic    ? '<span class="badge-ic">IC</span>'    : ''
-                ].join('');
+                ].filter(Boolean).join('');
                 return `
                   <tr>
                     <td style="color:var(--gris2);font-size:0.75rem;font-family:'JetBrains Mono',monospace">${String(i+1).padStart(2,'0')}</td>
