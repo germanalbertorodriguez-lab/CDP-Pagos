@@ -1360,7 +1360,7 @@ function renderMisComprobantes(cnt) {
           <tbody>
             ${jug.map((j, i) => {
               const c = getCompActivo(j.id, mes);
-              return renderFilaDelegado(i+1, j, c, mes);
+              return renderFilaDelegado(i+1, j, c, mes, labelMas);
             }).join('')}
           </tbody>
         </table>
@@ -1369,7 +1369,7 @@ function renderMisComprobantes(cnt) {
   `;
 }
 
-function renderFilaDelegado(i, jugador, comp, mes) {
+function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
   let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
   let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
 
