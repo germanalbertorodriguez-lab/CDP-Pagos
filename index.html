@@ -878,8 +878,8 @@ const CONFIG = {
   // URL de tu Google Apps Script Web App (la pegás después de publicar)
   SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwAr254Oem8RMTZcscDBRAhULTnrimG1o-LGyF2_iYKON-3e5zElJsNKpKLFoC9yY_2/exec',
 
-  // PIN del administrador (podés cambiarlo en el script también)
-  ADMIN_PIN: '1603',
+  // SEGURIDAD: El PIN del administrador ya NO se almacena en el frontend.
+  // La validación ocurre exclusivamente en el servidor.
 
   // Meses habilitados para carga
   MESES: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -897,6 +897,7 @@ const CONFIG = {
 // ══════════════════════════════════════════════════════════════════
 let APP = {
   rol: null,            // 'delegado' | 'admin'
+  token: null,          // token de sesión (auth)
   equipo: null,         // objeto equipo del delegado
   equipos: [],          // todos los equipos
   jugadores: [],        // jugadores del equipo actual (delegado)
@@ -918,57 +919,94 @@ let APP = {
 // EQUIPOS HARDCODED (fallback mientras se carga del sheet)
 // ══════════════════════════════════════════════════════════════════
 const EQUIPOS_FALLBACK = [
-  {id:'Abogados_A',       nombre:'Abogados A',        cat:'Libres',  pin:''},
-  {id:'Abogados_AR',      nombre:'Abogados AR',        cat:'Libres',  pin:''},
-  {id:'Abogados_B',       nombre:'Abogados B',         cat:'Libres',  pin:''},
-  {id:'Arquitectos',      nombre:'Arquitectos',        cat:'Libres',  pin:''},
-  {id:'Contadores_A',     nombre:'Contadores A',       cat:'Libres',  pin:''},
-  {id:'Contadores_Z',     nombre:'Contadores Z',       cat:'Libres',  pin:''},
-  {id:'Docentes_A',       nombre:'Docentes A',         cat:'Libres',  pin:''},
-  {id:'Docentes_B',       nombre:'Docentes B',         cat:'Libres',  pin:''},
-  {id:'Docentes_E',       nombre:'Docentes E',         cat:'Libres',  pin:''},
-  {id:'Docentes_W',       nombre:'Docentes W',         cat:'Libres',  pin:''},
-  {id:'Ingenieros',       nombre:'Ingenieros',         cat:'Libres',  pin:''},
-  {id:'Ingenieros_S',     nombre:'Ingenieros S',       cat:'Libres',  pin:''},
-  {id:'Maestros',         nombre:'Maestros',           cat:'Libres',  pin:''},
-  {id:'Profesores_P',     nombre:'Profesores P',       cat:'Libres',  pin:''},
-  {id:'Salud_B',          nombre:'Salud B',            cat:'Libres',  pin:''},
-  {id:'Salud_F',          nombre:'Salud F',            cat:'Libres',  pin:''},
-  {id:'Salud_T',          nombre:'Salud T',            cat:'Libres',  pin:''},
-  {id:'Tecnicos_A',       nombre:'Tecnicos A',         cat:'Libres',  pin:''},
-  {id:'Abogados_A_(S)',   nombre:'Abogados A (S)',     cat:'Senior',  pin:''},
-  {id:'Arquitectos_(S)',  nombre:'Arquitectos (S)',    cat:'Senior',  pin:''},
-  {id:'Contadores_A_(S)', nombre:'Contadores A (S)',   cat:'Senior',  pin:''},
-  {id:'Contadores_Z_(S)', nombre:'Contadores Z (S)',   cat:'Senior',  pin:''},
-  {id:'Docentes_A_(S)',   nombre:'Docentes A (S)',     cat:'Senior',  pin:''},
-  {id:'Docentes_B_(S)',   nombre:'Docentes B (S)',     cat:'Senior',  pin:''},
-  {id:'Docentes_F_(S)',   nombre:'Docentes F (S)',     cat:'Senior',  pin:''},
-  {id:'Docentes_T_(S)',   nombre:'Docentes T (S)',     cat:'Senior',  pin:''},
-  {id:'Docentes_X_(S)',   nombre:'Docentes X (S)',     cat:'Senior',  pin:''},
-  {id:'Licenciados_(S)',  nombre:'Licenciados (S)',    cat:'Senior',  pin:''},
-  {id:'Salud_B_(S)',      nombre:'Salud B (S)',        cat:'Senior',  pin:''},
-  {id:'Salud_F_(S)',      nombre:'Salud F (S)',        cat:'Senior',  pin:''},
+  {id:'Abogados_A',       nombre:'Abogados A',        cat:'Libres'},
+  {id:'Abogados_AR',      nombre:'Abogados AR',        cat:'Libres'},
+  {id:'Abogados_B',       nombre:'Abogados B',         cat:'Libres'},
+  {id:'Arquitectos',      nombre:'Arquitectos',        cat:'Libres'},
+  {id:'Contadores_A',     nombre:'Contadores A',       cat:'Libres'},
+  {id:'Contadores_Z',     nombre:'Contadores Z',       cat:'Libres'},
+  {id:'Docentes_A',       nombre:'Docentes A',         cat:'Libres'},
+  {id:'Docentes_B',       nombre:'Docentes B',         cat:'Libres'},
+  {id:'Docentes_E',       nombre:'Docentes E',         cat:'Libres'},
+  {id:'Docentes_W',       nombre:'Docentes W',         cat:'Libres'},
+  {id:'Ingenieros',       nombre:'Ingenieros',         cat:'Libres'},
+  {id:'Ingenieros_S',     nombre:'Ingenieros S',       cat:'Libres'},
+  {id:'Maestros',         nombre:'Maestros',           cat:'Libres'},
+  {id:'Profesores',       nombre:'Profesores',         cat:'Libres'},
+  {id:'Salud_B',          nombre:'Salud B',            cat:'Libres'},
+  {id:'Salud_F',          nombre:'Salud F',            cat:'Libres'},
+  {id:'Salud_T',          nombre:'Salud T',            cat:'Libres'},
+  {id:'Tecnicos_A',       nombre:'Tecnicos A',         cat:'Libres'},
+  {id:'Abogados_A_(S)',   nombre:'Abogados A (S)',     cat:'Senior'},
+  {id:'Arquitectos_(S)',  nombre:'Arquitectos (S)',    cat:'Senior'},
+  {id:'Contadores_A_(S)', nombre:'Contadores A (S)',   cat:'Senior'},
+  {id:'Contadores_Z_(S)', nombre:'Contadores Z (S)',   cat:'Senior'},
+  {id:'Docentes_A_(S)',   nombre:'Docentes A (S)',     cat:'Senior'},
+  {id:'Docentes_B_(S)',   nombre:'Docentes B (S)',     cat:'Senior'},
+  {id:'Docentes_F_(S)',   nombre:'Docentes F (S)',     cat:'Senior'},
+  {id:'Docentes_T_(S)',   nombre:'Docentes T (S)',     cat:'Senior'},
+  {id:'Docentes_X_(S)',   nombre:'Docentes X (S)',     cat:'Senior'},
+  {id:'Licenciados_(S)',  nombre:'Licenciados (S)',    cat:'Senior'},
+  {id:'Salud_B_(S)',      nombre:'Salud B (S)',        cat:'Senior'},
+  {id:'Salud_F_(S)',      nombre:'Salud F (S)',        cat:'Senior'},
 ];
 
 // ══════════════════════════════════════════════════════════════════
 // API
 // ══════════════════════════════════════════════════════════════════
 async function api(accion, datos = {}) {
+  // SEGURIDAD: Incluir token de sesión en todas las llamadas
+  if (APP.token) datos.token = APP.token;
   const params = new URLSearchParams({ accion, ...datos });
+  console.log('[CDP] API →', accion, APP.token ? '(con token)' : '(sin token)');
   const res = await fetch(CONFIG.SCRIPT_URL + '?' + params.toString());
   if (!res.ok) throw new Error('Error de red');
-  return res.json();
+  const json = await res.json();
+  // Manejar errores de autenticación
+  if (!json.ok && (json.error === 'NO_TOKEN' || json.error === 'TOKEN_EXPIRED')) {
+    console.error('[CDP] Auth error:', json.error, '- APP.token era:', APP.token ? 'presente' : 'null');
+    manejarSesionExpirada();
+    throw new Error(json.msg || 'Sesión expirada');
+  }
+  if (!json.ok && json.error === 'FORBIDDEN') {
+    throw new Error(json.msg || 'Sin permisos');
+  }
+  return json;
 }
 
 async function apiPost(accion, datos = {}) {
   const fd = new FormData();
   fd.append('accion', accion);
+  // SEGURIDAD: Incluir token de sesión en POST
+  if (APP.token) fd.append('token', APP.token);
   for (const [k, v] of Object.entries(datos)) {
     fd.append(k, v);
   }
   const res = await fetch(CONFIG.SCRIPT_URL, { method: 'POST', body: fd });
   if (!res.ok) throw new Error('Error de red');
-  return res.json();
+  const json = await res.json();
+  // Manejar errores de autenticación
+  if (!json.ok && (json.error === 'NO_TOKEN' || json.error === 'TOKEN_EXPIRED')) {
+    manejarSesionExpirada();
+    throw new Error(json.msg || 'Sesión expirada');
+  }
+  if (!json.ok && json.error === 'FORBIDDEN') {
+    throw new Error(json.msg || 'Sin permisos');
+  }
+  return json;
+}
+
+function manejarSesionExpirada() {
+  // Limpiar estado sin hacer llamada API (la sesión ya expiró)
+  APP.token = null;
+  APP.rol = null;
+  APP.equipo = null;
+  // Volver a pantalla de login
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('admin-pin').value = '';
+  alert('Tu sesión expiró. Por favor ingresá nuevamente.');
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -986,13 +1024,33 @@ function setLoginMode(modo) {
 
 async function cargarEquiposSelect() {
   const sel = document.getElementById('login-equipo');
-  sel.innerHTML = '<option value="">Seleccioná tu equipo...</option>';
+  sel.innerHTML = '<option value="">Cargando equipos...</option>';
 
-  // Agrupar por categoría
-  const libres = EQUIPOS_FALLBACK.filter(e => e.cat === 'Libres');
-  const senior = EQUIPOS_FALLBACK.filter(e => e.cat === 'Senior');
+  // Intentar cargar del Sheet primero
+  let equipos = null;
+  try {
+    const data = await api('getEquipos');
+    if (data.ok && data.equipos && data.equipos.length > 0) {
+      equipos = data.equipos;
+      APP.equipos = equipos;
+    }
+  } catch(e) {
+    console.warn('No se pudieron cargar equipos del Sheet, usando fallback local.');
+  }
+
+  // Si falló, usar fallback
+  if (!equipos) {
+    equipos = EQUIPOS_FALLBACK;
+    APP.equipos = equipos;
+  }
+
+  // Poblar el select
+  sel.innerHTML = '<option value="">Seleccioná tu equipo...</option>';
+  const libres = equipos.filter(e => e.cat === 'Libres');
+  const senior = equipos.filter(e => e.cat === 'Senior');
 
   const addGroup = (label, arr) => {
+    if (!arr.length) return;
     const og = document.createElement('optgroup');
     og.label = label;
     arr.forEach(e => {
@@ -1004,18 +1062,6 @@ async function cargarEquiposSelect() {
   };
   addGroup('── Libres ──', libres);
   addGroup('── Senior ──', senior);
-
-  // Intentar cargar PINs del sheet
-  try {
-    const data = await api('getEquipos');
-    if (data.ok) {
-      APP.equipos = data.equipos;
-      // Actualizar pins en el select sin cambiar opciones
-    }
-  } catch(e) {
-    // Usa fallback local
-    APP.equipos = EQUIPOS_FALLBACK;
-  }
 }
 
 async function doLogin() {
@@ -1032,8 +1078,15 @@ async function doLogin() {
   try {
     const data = await api('login', { equipoId, pin });
     if (data.ok) {
+      if (!data.token) {
+        showError(err, 'Error de sesión: el servidor no devolvió token. Verificá que el backend esté actualizado.');
+        btn.disabled = false; btn.textContent = 'Ingresar';
+        return;
+      }
       APP.rol = 'delegado';
+      APP.token = data.token;
       APP.equipo = data.equipo;
+      console.log('[CDP] Login delegado OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
     } else {
       showError(err, data.msg || 'PIN incorrecto.');
@@ -1056,7 +1109,14 @@ async function doAdminLogin() {
   try {
     const data = await api('loginAdmin', { pin });
     if (data.ok) {
+      if (!data.token) {
+        showError(err, 'Error de sesión: el servidor no devolvió token. Verificá que el backend esté actualizado.');
+        btn.disabled = false; btn.textContent = 'Ingresar como Admin';
+        return;
+      }
       APP.rol = 'admin';
+      APP.token = data.token;
+      console.log('[CDP] Login admin OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
     } else {
       showError(err, 'PIN de administrador incorrecto.');
@@ -1072,7 +1132,11 @@ function showError(el, msg) {
 }
 
 function doLogout() {
-  APP = { rol:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
+  // SEGURIDAD: Destruir sesión en el servidor
+  if (APP.token) {
+    api('logout', { token: APP.token }).catch(() => {}); // fire and forget
+  }
+  APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
     filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
     modalJugadorId:null, modalJugadorNombre:null, modalComprobanteId:null, archivoSeleccionado:null
