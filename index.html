@@ -940,7 +940,7 @@ let APP = {
   mesSeleccionado: CONFIG.MES_ACTUAL,
   paginaActual: 1,
   porPagina: 25,
-  filtroEstado: 'todos',
+  filtroEstado: 'Pendiente',
   filtroEquipo: '',
   filtroMes: CONFIG.MES_ACTUAL,
   // datos modal
@@ -1197,7 +1197,7 @@ function doLogout() {
   limpiarSesionLocal();
   APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
-    filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
+    filtroEstado:'Pendiente', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
     modalJugadorId:null, modalJugadorNombre:null, modalComprobanteId:null, archivoSeleccionado:null
   };
   document.getElementById('app').style.display = 'none';
@@ -1539,25 +1539,6 @@ async function renderAdmin() {
           <div class="stat-card-label">🚫 Sancionados activos</div>
         </div>` : ''}
       </div>
-      ${totalSancionados > 0 ? `
-      <div class="card">
-        <div class="card-title">🚫 Sanciones disciplinarias activas (${totalSancionados})</div>
-        <div class="tabla-wrapper">
-          <table>
-            <thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>Motivo</th><th>Fecha Hábil</th></tr></thead>
-            <tbody>
-              ${(sancionesData||[]).map((s,i)=>`
-                <tr>
-                  <td style="color:var(--gris2);font-size:0.75rem">${String(i+1).padStart(2,'0')}</td>
-                  <td class="jugador-nombre">${s.nombre}</td>
-                  <td style="font-size:0.82rem">${s.equipo}</td>
-                  <td style="font-size:0.82rem">${s.partidos || '—'}</td>
-                  <td style="font-size:0.82rem;font-weight:600;color:${s.fechaHab ? '#0369a1' : '#9f1239'}">${s.fechaHab || 'Sin fecha'}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>` : ''}
       <div class="card">
         <div class="card-title">⚽ Resumen por equipo — ${APP.filtroMes}</div>
         <div class="mes-selector" style="margin-bottom:14px">
@@ -1583,7 +1564,26 @@ async function renderAdmin() {
             </tbody>
           </table>
         </div>
-      </div>`;
+      </div>
+      ${totalSancionados > 0 ? `
+      <div class="card">
+        <div class="card-title">🚫 Sanciones disciplinarias activas (${totalSancionados})</div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>Motivo</th><th>Habilitado Fecha</th></tr></thead>
+            <tbody>
+              ${(sancionesData||[]).map((s,i)=>`
+                <tr>
+                  <td style="color:var(--gris2);font-size:0.75rem">${String(i+1).padStart(2,'0')}</td>
+                  <td class="jugador-nombre">${s.nombre}</td>
+                  <td style="font-size:0.82rem">${s.equipo}</td>
+                  <td style="font-size:0.82rem">${s.partidos || '—'}</td>
+                  <td style="font-size:0.82rem;font-weight:600;color:${s.fechaHab ? '#0369a1' : '#9f1239'}">${s.fechaHab || 'Sin Sancion'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}`;
   } catch(e) {
     cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
   }
@@ -2528,6 +2528,7 @@ async function renderPlanillas() {
                 ${p.local} <span style="color:var(--gris2);font-weight:400">vs</span> ${p.visitante}
                 ${p.categoria ? `<span class="partido-cat ${catClass}">${p.categoria}</span>` : ''}
               </div>
+              ${p.resultado ? `<div style="font-size:0.85rem;font-weight:700;color:#16a34a;margin:2px 0 4px">⚽ Resultado: ${p.resultado}</div>` : ''}
               <div class="partido-detalle">
                 ${p.fecha ? `<span>📅 ${p.fecha}</span>` : ''}
                 ${p.hora  ? `<span>🕐 ${p.hora}</span>` : ''}
@@ -2546,6 +2547,18 @@ async function renderPlanillas() {
 
     html += '</div></div>';
     cnt.innerHTML = html;
+
+    // Auto-seleccionar la primera fecha que no tenga todos los resultados completos
+    let fechaIncompleta = '';
+    for (const [fechaNro, pts] of Object.entries(grupos)) {
+      const todosConResultado = pts.every(p => p.resultado && p.resultado.trim() !== '');
+      if (!todosConResultado) { fechaIncompleta = fechaNro; break; }
+    }
+    if (fechaIncompleta) {
+      const sel = document.getElementById('filtro-fecha-nro');
+      if (sel) { sel.value = fechaIncompleta; }
+      filtrarFixture(fechaIncompleta);
+    }
   } catch(e) {
     cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
   }
