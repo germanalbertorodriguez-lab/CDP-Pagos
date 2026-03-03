@@ -465,6 +465,15 @@
     white-space: nowrap; font-size: 0.75rem; color: var(--rojo);
     cursor: help;
   }
+  .obs-rechazo-row {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;
+    padding: 6px 10px; font-size: 0.78rem; color: #b91c1c;
+    max-width: 220px; line-height: 1.3;
+  }
+  .obs-rechazo-row strong {
+    display: block; font-size: 0.7rem; color: #991b1b;
+    text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px;
+  }
 
   /* ── PLANILLAS ─────────────────────────────── */
   .partido-card {
@@ -889,8 +898,9 @@ const CONFIG = {
   MESES: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
           'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 
-  // Mes activo por defecto (el actual)
-  MES_ACTUAL: 'Febrero',
+  // Mes activo por defecto (el actual, dinámico)
+  MES_ACTUAL: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][new Date().getMonth()],
   // URLs de las fichas PDF (pegá el link de Drive para compartir):
   URL_FICHA_MEDICA:      'https://drive.google.com/file/d/1njxys1MIu403PRY0Jox1nlguopzIaVRz/view?usp=sharing',
   URL_FICHA_INSCRIPCION: 'https://drive.google.com/file/d/1wao4YbRJVdYyVNb6leEH_qpwjG3fat0Q/view?usp=sharing'
@@ -1239,32 +1249,23 @@ async function renderDelegado(vista = 'mis-comprobantes', forceReload = false) {
   console.log('[CDP] renderDelegado →', vista, 'equipoId:', equipoId, 'force:', forceReload);
 
   try {
-    // Jugadores: cachear por sesión (no cambian durante la sesión del delegado)
-    if (!APP.jugadores || APP.jugadores.length === 0 || forceReload) {
-      console.log('[CDP] Pidiendo jugadores...');
-      const dj = await apiConTimeout('getJugadores', { equipoId }, 20000);
-      if (!dj.ok) throw new Error(dj.msg || 'Error al cargar jugadores');
-      APP.jugadores = dj.jugadores || [];
-      console.log('[CDP] Jugadores OK:', APP.jugadores.length);
+    // Usar endpoint combinado getDelegadoInit (1 sola llamada en vez de 3)
+    const needFull = !APP.jugadores || APP.jugadores.length === 0 || forceReload;
+
+    if (needFull) {
+      console.log('[CDP] getDelegadoInit (carga completa)...');
+      const data = await apiConTimeout('getDelegadoInit', { equipoId }, 25000);
+      if (!data.ok) throw new Error(data.msg || 'Error al cargar datos');
+      APP.jugadores = data.jugadores || [];
+      APP.comprobantes = data.comprobantes || [];
+      if (data.parametros) APP._parametrosCache = data.parametros;
+      console.log('[CDP] Init OK → jugadores:', APP.jugadores.length, 'comprobantes:', APP.comprobantes.length);
     } else {
-      console.log('[CDP] Jugadores (cache):', APP.jugadores.length);
-    }
-
-    // Comprobantes: siempre refrescar (cambian con cada carga)
-    console.log('[CDP] Pidiendo comprobantes...');
-    const dc = await apiConTimeout('getComprobantes', { equipoId }, 20000);
-    APP.comprobantes = (dc && dc.ok) ? dc.comprobantes : [];
-    console.log('[CDP] Comprobantes OK:', APP.comprobantes.length);
-
-    // Parámetros: cachear (cambian muy rara vez)
-    if (!APP._parametrosCache || forceReload) {
-      try {
-        const dp = await apiConTimeout('getParametros', {}, 10000);
-        APP._parametrosCache = (dp && dp.ok) ? dp : null;
-      } catch(ep) {
-        console.warn('[CDP] getParametros falló (no crítico):', ep.message);
-        APP._parametrosCache = null;
-      }
+      // Solo refrescar comprobantes (pueden cambiar por acciones admin)
+      console.log('[CDP] Refrescando comprobantes...');
+      const dc = await apiConTimeout('getComprobantes', { equipoId }, 20000);
+      APP.comprobantes = (dc && dc.ok) ? dc.comprobantes : [];
+      console.log('[CDP] Comprobantes OK:', APP.comprobantes.length);
     }
 
     if (vista === 'historial') renderHistorial(cnt);
@@ -1291,9 +1292,19 @@ function renderMisComprobantes(cnt) {
   const comp = APP.comprobantes.filter(c => c.estado !== 'Reemplazado'); // Ignorar reemplazados
   const mes = APP.mesSeleccionado;
 
+  console.log('[CDP] renderMisComprobantes — mes:', mes, 'jugadores:', jug.length, 'comprobantes (sin reemplazados):', comp.length);
+  if (comp.length > 0) {
+    console.log('[CDP] Ejemplo comp[0]:', JSON.stringify({jugadorId: comp[0].jugadorId, mes: comp[0].mes, estado: comp[0].estado, obsAdmin: comp[0].obsAdmin}));
+  }
+  if (jug.length > 0) {
+    console.log('[CDP] Ejemplo jug[0]:', JSON.stringify({id: jug[0].id, nombre: jug[0].nombre}));
+  }
+
   // Para cada jugador+mes, quedarse con el comprobante más reciente activo
   function getCompActivo(jugadorId, mes) {
-    const del = comp.filter(c => String(c.jugadorId) == String(jugadorId) && c.mes === mes);
+    const nJid = String(jugadorId).trim();
+    const nMes = String(mes).trim();
+    const del = comp.filter(c => String(c.jugadorId).trim() === nJid && String(c.mes).trim() === nMes);
     if (!del.length) return null;
     // Prioridad: Aprobado > Pendiente > Rechazado (más reciente)
     del.sort((a,b) => {
@@ -1375,7 +1386,7 @@ function renderMisComprobantes(cnt) {
 
 function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
   let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
-  let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
+  let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar('${jugador.id}','${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
 
   if (comp) {
     if (comp.estado === 'Aprobado') {
@@ -1386,7 +1397,7 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
       accionHtml = `
         <div class="btn-actions">
           <button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>
-          <button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}','${comp.id}','${(comp.obsAdmin||'').replace(/'/g,"\\'")}')">🔄 Reintentar</button>
+          <button class="btn-sm btn-cargar" onclick="abrirModalCargar('${jugador.id}','${jugador.nombre.replace(/'/g,"\\'")}','${mes}','${comp.id}','${(comp.obsAdmin||'').replace(/'/g,"\\'")}')">🔄 Reintentar</button>
         </div>`;
     } else {
       estadoHtml = `<span class="estado-badge estado-pendiente">⏳ Pendiente</span>`;
@@ -1394,9 +1405,11 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
     }
   }
 
-  const obsHtml = comp?.obsAdmin
-    ? `<span class="obs-tag" title="${comp.obsAdmin}">${comp.obsAdmin}</span>`
-    : '—';
+  const obsHtml = (comp?.estado === 'Rechazado' && comp?.obsAdmin)
+    ? `<div class="obs-rechazo-row"><strong>⚠️ Motivo rechazo:</strong>${comp.obsAdmin}</div>`
+    : (comp?.obsAdmin
+      ? `<span class="obs-tag" title="${comp.obsAdmin}">${comp.obsAdmin}</span>`
+      : '—');
 
   const badges = [
     jugador.mas35 ? '<span class="badge-mas35">' + labelMas + '</span>' : '',
@@ -3595,6 +3608,24 @@ async function guardarSalud() {
 // INIT
 // ══════════════════════════════════════════════════════════════════
 cargarEquiposSelect();
+
+// ── Auto-refresh: cuando el delegado vuelve a la pestaña, refrescar comprobantes ──
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && APP.rol === 'delegado' && APP.equipo) {
+    try {
+      console.log('[CDP] Auto-refresh por visibilitychange...');
+      const dc = await apiConTimeout('getComprobantes', { equipoId: APP.equipo.id }, 15000);
+      if (dc && dc.ok) {
+        APP.comprobantes = dc.comprobantes;
+        // Solo re-render si estamos en la pestaña de comprobantes
+        const activeTab = document.querySelector('.nav-tab.active');
+        if (activeTab && activeTab.textContent.includes('Comprobantes')) {
+          renderMisComprobantes(document.getElementById('main-content'));
+        }
+      }
+    } catch(e) { console.warn('[CDP] Auto-refresh falló:', e.message); }
+  }
+});
 
 // Drag & drop en upload zone
 document.getElementById('upload-zone')?.addEventListener('dragover', e => {
