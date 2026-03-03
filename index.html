@@ -1939,7 +1939,7 @@ async function aprobarComprobante(comprobanteId) {
 
 async function confirmarRechazo() {
   const obs = document.getElementById('rech-obs').value.trim();
-  if (!obs) { showToast('Ingresá el motivo del rechazo', 'error'); return; }
+  if (!obs) { showToast('El motivo del rechazo es obligatorio', 'error'); return; }
 
   const btn = document.querySelector('#modal-rechazar .btn-rechazar');
   btn.disabled = true; btn.textContent = 'Rechazando...';
@@ -1948,7 +1948,23 @@ async function confirmarRechazo() {
     const data = await api('rechazar', { id: APP.modalComprobanteId, obs });
     if (data.ok) {
       cerrarModal('modal-rechazar');
-      showToast('Comprobante rechazado', 'info');
+      // Si hay datos de WhatsApp con telefono, mostrar modal con boton
+      if (data.whatsapp && data.whatsapp.telefono) {
+        const wa = data.whatsapp;
+        const msg = encodeURIComponent(
+          'Estimado Delegado,\n\n' +
+          'Le informamos que el comprobante correspondiente al jugador:\n\n' +
+          '*' + wa.jugador + ' - Equipo: ' + wa.equipo + ' (mes: ' + wa.mes + ')* ha sido *RECHAZADO*.\n\n' +
+          '*Motivo:* ' + wa.motivo + '\n\n' +
+          'Le solicitamos ingresar a la app para cargar un nuevo comprobante y regularizar la situacion a la brevedad.\n\n' +
+          'Ante cualquier duda, quedamos a disposicion.\n\n' +
+          '_Sistema de Pagos - Club de Profesionales Justo Jose de Urquiza_'
+        );
+        const waUrl = 'https://wa.me/' + wa.telefono + '?text=' + msg;
+        mostrarWhatsAppModal(waUrl, wa.jugador, wa.equipo, wa.mes);
+      } else {
+        showToast('Comprobante rechazado (email enviado)', 'info');
+      }
       if (APP.rol === 'admin') renderTodosComprobantes();
       else renderDelegado();
     } else throw new Error(data.msg);
@@ -1956,6 +1972,38 @@ async function confirmarRechazo() {
     showToast('Error: ' + e.message, 'error');
   }
   btn.disabled = false; btn.textContent = 'Rechazar';
+}
+
+function mostrarWhatsAppModal(waUrl, jugador, equipo, mes) {
+  let modal = document.getElementById('modal-whatsapp');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-whatsapp';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+          <span class="modal-title">Comprobante rechazado</span>
+          <button class="modal-close" onclick="cerrarModal('modal-whatsapp')">x</button>
+        </div>
+        <div class="modal-body" id="modal-wa-body"></div>
+        <div class="modal-footer" id="modal-wa-footer"></div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('modal-wa-body').innerHTML = `
+    <p style="font-size:0.88rem;color:var(--gris3);margin-bottom:12px">El email de rechazo ya fue enviado. Queres notificar tambien por WhatsApp al delegado?</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:0.82rem;color:#15803d">
+      <div><b>${jugador}</b> - ${equipo}</div>
+      <div style="margin-top:4px">Mes: <b>${mes}</b></div>
+    </div>`;
+  document.getElementById('modal-wa-footer').innerHTML = `
+    <button class="btn-sm btn-ver" onclick="cerrarModal('modal-whatsapp')">Omitir</button>
+    <a href="${waUrl}" target="_blank" rel="noopener" onclick="setTimeout(()=>cerrarModal('modal-whatsapp'),500)"
+       style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;padding:8px 18px;border-radius:8px;font-weight:700;font-size:0.88rem;text-decoration:none;border:none;cursor:pointer">
+      Enviar por WhatsApp
+    </a>`;
+  abrirModal('modal-whatsapp');
 }
 
 // ══════════════════════════════════════════════════════════════════
