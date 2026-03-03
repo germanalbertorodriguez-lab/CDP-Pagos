@@ -887,12 +887,45 @@ const CONFIG = {
   MESES: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
           'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 
-  // Mes activo por defecto (el actual)
-  MES_ACTUAL: 'Febrero',
+  // Mes activo por defecto (se calcula automáticamente)
+  MES_ACTUAL: ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][new Date().getMonth()],
   // URLs de las fichas PDF (pegá el link de Drive para compartir):
   URL_FICHA_MEDICA:      'https://drive.google.com/file/d/1njxys1MIu403PRY0Jox1nlguopzIaVRz/view?usp=sharing',
   URL_FICHA_INSCRIPCION: 'https://drive.google.com/file/d/1wao4YbRJVdYyVNb6leEH_qpwjG3fat0Q/view?usp=sharing'
 };
+
+// ══════════════════════════════════════════════════════════════════
+// PERSISTENCIA DE SESIÓN (sessionStorage)
+// ══════════════════════════════════════════════════════════════════
+function guardarSesionLocal() {
+  try {
+    sessionStorage.setItem('cdp_session', JSON.stringify({
+      rol: APP.rol,
+      token: APP.token,
+      equipo: APP.equipo,
+      ts: Date.now(),
+    }));
+  } catch(e) { console.warn('[CDP] No se pudo guardar sesión local:', e); }
+}
+
+function cargarSesionLocal() {
+  try {
+    const raw = sessionStorage.getItem('cdp_session');
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    // Expirar después de 6 horas (igual que el server)
+    if (Date.now() - s.ts > 6 * 60 * 60 * 1000) {
+      sessionStorage.removeItem('cdp_session');
+      return null;
+    }
+    return s;
+  } catch(e) { return null; }
+}
+
+function limpiarSesionLocal() {
+  try { sessionStorage.removeItem('cdp_session'); } catch(e) {}
+}
 
 // ══════════════════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -1018,6 +1051,7 @@ async function apiPost(accion, datos = {}) {
 
 function manejarSesionExpirada() {
   // Limpiar estado sin hacer llamada API (la sesión ya expiró)
+  limpiarSesionLocal();
   APP.token = null;
   APP.rol = null;
   APP.equipo = null;
@@ -1108,6 +1142,7 @@ async function doLogin() {
       APP.rol = 'delegado';
       APP.token = data.token;
       APP.equipo = data.equipo;
+      guardarSesionLocal();
       console.log('[CDP] Login delegado OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
     } else {
@@ -1138,6 +1173,7 @@ async function doAdminLogin() {
       }
       APP.rol = 'admin';
       APP.token = data.token;
+      guardarSesionLocal();
       console.log('[CDP] Login admin OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
     } else {
@@ -1158,6 +1194,7 @@ function doLogout() {
   if (APP.token) {
     api('logout', { token: APP.token }).catch(() => {}); // fire and forget
   }
+  limpiarSesionLocal();
   APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
     filtroEstado:'todos', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
@@ -1467,7 +1504,7 @@ async function renderAdmin() {
         <div class="stat-card amarillo"><div class="stat-card-num">${pendientes}</div><div class="stat-card-label">Pendientes</div></div>
         <div class="stat-card rojo"><div class="stat-card-num">${rechazados}</div><div class="stat-card-label">Rechazados</div></div>
         ${data.solicitudesPendientes > 0 ? `<div class="stat-card amarillo" style="cursor:pointer" onclick="document.querySelector('#tab-solicitudes')?.click()">
-          <div class="stat-card-num">` + '${data.solicitudesPendientes}' + `</div>
+          <div class="stat-card-num">${data.solicitudesPendientes}</div>
           <div class="stat-card-label">Solicitudes alta pendientes ⚠️</div>
         </div>` : ''}
         ${totalSancionados > 0 ? `<div class="stat-card rojo">
@@ -3577,6 +3614,43 @@ async function guardarSalud() {
 // INIT
 // ══════════════════════════════════════════════════════════════════
 cargarEquiposSelect();
+
+// Restaurar sesión si existe (evita perder login al refrescar)
+(async function restaurarSesion() {
+  const sesion = cargarSesionLocal();
+  if (!sesion || !sesion.token) return;
+
+  // Verificar que el token siga vivo en el servidor
+  try {
+    // Hacemos una llamada liviana para validar el token
+    APP.token = sesion.token;
+    APP.rol = sesion.rol;
+    APP.equipo = sesion.equipo;
+
+    if (sesion.rol === 'admin') {
+      const check = await api('getParametros');
+      if (check.ok) {
+        console.log('[CDP] Sesión admin restaurada desde sessionStorage');
+        iniciarApp();
+        return;
+      }
+    } else if (sesion.rol === 'delegado' && sesion.equipo) {
+      const check = await api('getJugadores', { equipoId: sesion.equipo.id });
+      if (check.ok) {
+        console.log('[CDP] Sesión delegado restaurada desde sessionStorage');
+        iniciarApp();
+        return;
+      }
+    }
+  } catch(e) {
+    console.warn('[CDP] No se pudo restaurar la sesión:', e.message);
+  }
+  // Si llegamos acá, el token ya no es válido
+  limpiarSesionLocal();
+  APP.token = null;
+  APP.rol = null;
+  APP.equipo = null;
+})();
 
 // Drag & drop en upload zone
 document.getElementById('upload-zone')?.addEventListener('dragover', e => {
