@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.2 — 2026-03-04 02:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.3 — 2026-03-04 15:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -756,7 +756,47 @@
   </div>
 </div>
 
+<!-- Modal Ver Estudio Médico (Admin) -->
+<div class="modal-overlay" id="modal-ver-estudio" style="display:none">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title">🩺 Estudio Médico</span>
+      <button class="modal-close" onclick="cerrarModal('modal-ver-estudio')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px" id="modal-ver-estudio-body">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer" id="modal-ver-estudio-footer"></div>
+  </div>
+</div>
+
+<!-- Modal Rechazar Estudio Médico (Admin) -->
+<div class="modal-overlay" id="modal-rechazar-estudio" style="display:none">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">❌ Rechazar Estudio</span>
+      <button class="modal-close" onclick="cerrarModal('modal-rechazar-estudio')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:0.88rem;color:var(--gris3)">
+        Jugador: <strong id="rech-est-jugador"></strong>
+      </div>
+      <div class="form-group">
+        <label>Motivo del rechazo (opcional)</label>
+        <textarea id="rech-est-obs" rows="3"
+          style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical"
+          placeholder="Ej: Estudio desactualizado, ilegible, etc."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-rechazar-estudio')">Cancelar</button>
+      <button class="btn-sm btn-rechazar" onclick="confirmarRechazarEstudio()">❌ Rechazar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Subir Estudio Médico -->
+
 <div class="modal-overlay" id="modal-subir-estudio" style="display:none">
   <div class="modal-card" style="max-width:440px">
     <div class="modal-header">
@@ -1263,6 +1303,7 @@ function iniciarApp() {
       <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
       <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
       <button class="nav-tab" onclick="navTo('solicitudes-alta', this)" id="tab-solicitudes">📥 Solicitudes</button>
+      <button class="nav-tab" onclick="navTo('estudios-medicos-admin', this)">🩺 Estudios</button>
       <button class="nav-tab" onclick="navTo('salud-admin', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
@@ -1293,6 +1334,8 @@ function navTo(vista, btn) {
     renderSolicitudesAlta();
   } else if (vista === 'salud-delegado') {
     renderSaludDelegado();
+  } else if (vista === 'estudios-medicos-admin') {
+    renderEstudiosMedicosAdmin();
   } else if (vista === 'salud-admin') {
     renderSaludAdmin();
   } else if (vista === 'configuracion') {
@@ -3236,6 +3279,33 @@ async function renderConfiguracion() {
 
           <div>
             <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+              🩺 Estudios Médicos MAS40
+            </div>
+            <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:14px;line-height:1.6">
+              Configurá las fechas que controlan la validez de los estudios.<br>
+              <strong>Ene–Jun:</strong> vencen en "Inicio torneo siguiente" · <strong>Jul–Dic:</strong> vencen el 30/06 del año entrante.
+            </p>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <div class="form-group" style="flex:1;min-width:200px">
+                <label>📅 Fecha límite presentación MAS40</label>
+                <input id="cfg-fecha-limite-estudios" type="text" placeholder="DD/MM/AAAA (ej: 28/02/2026)"
+                  value="${data.fechaLimiteEstudios||''}"
+                  style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.92rem">
+                <div style="font-size:0.74rem;color:var(--gris3);margin-top:4px">Deadline de renovación anual (generalmente fin de Febrero)</div>
+              </div>
+              <div class="form-group" style="flex:1;min-width:200px">
+                <label>🏆 Fecha inicio torneo siguiente año</label>
+                <input id="cfg-fecha-inicio-torneo-sig" type="text" placeholder="DD/MM/AAAA (ej: 01/03/2027)"
+                  value="${data.fechaInicioTorneoSig||''}"
+                  style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.92rem">
+                <div style="font-size:0.74rem;color:var(--gris3);margin-top:4px">Hasta esta fecha son válidos los estudios presentados entre Ene y Jun</div>
+              </div>
+            </div>
+            <button class="btn-sm btn-aprobar" style="margin-top:12px" onclick="guardarFechasEstudios()">💾 Guardar fechas</button>
+          </div>
+
+          <div>
+            <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
               📋 Historial de bajas
             </div>
             <p style="font-size:0.85rem;color:var(--gris3);margin-bottom:10px">Ver el registro histórico de todos los jugadores dados de baja.</p>
@@ -3272,6 +3342,24 @@ async function guardarCuotas() {
   try {
     const data = await api('setCuotas', { cuotaSocial, cuotaDeportiva });
     if (data.ok) showToast('Cuotas guardadas ✅', 'success');
+    else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function guardarFechasEstudios() {
+  const fechaLimiteEstudios  = document.getElementById('cfg-fecha-limite-estudios')?.value.trim();
+  const fechaInicioTorneoSig = document.getElementById('cfg-fecha-inicio-torneo-sig')?.value.trim();
+  // Validar formato básico DD/MM/AAAA
+  const reFecha = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+  if (fechaLimiteEstudios && !reFecha.test(fechaLimiteEstudios)) {
+    showToast('Fecha límite inválida. Usá DD/MM/AAAA', 'error'); return;
+  }
+  if (fechaInicioTorneoSig && !reFecha.test(fechaInicioTorneoSig)) {
+    showToast('Fecha inicio torneo inválida. Usá DD/MM/AAAA', 'error'); return;
+  }
+  try {
+    const data = await api('setFechasEstudios', { fechaLimiteEstudios, fechaInicioTorneoSig });
+    if (data.ok) showToast('Fechas de estudios guardadas ✅', 'success');
     else throw new Error(data.msg);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
@@ -3489,16 +3577,19 @@ async function enviarSolicitudAlta() {
 async function renderEstudiosMedicosDelegado(cnt) {
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando estudios...</div>';
   try {
-    const [dataJug, dataEM] = await Promise.all([
+    const [dataJug, dataEM, dp] = await Promise.all([
       api('getJugadores', { equipoId: APP.equipo.id }),
       api('getEstudiosMedicos', { equipoId: APP.equipo.id }),
+      api('getParametros'),
     ]);
     const jugadores = dataJug.ok ? dataJug.jugadores : [];
     const estudios  = dataEM.ok ? dataEM.estudios : [];
+    const params    = dp.ok ? dp : {};
     const emMap = {};
     estudios.forEach(e => { emMap[e.jugadorId] = e; });
 
     const esSeniorEquipo = (APP.equipo.cat||'').toLowerCase().includes('senior');
+    const fechaLimite = params.fechaLimiteEstudios || 'fin de Febrero';
 
     cnt.innerHTML = `
       <div class="card">
@@ -3507,27 +3598,55 @@ async function renderEstudiosMedicosDelegado(cnt) {
           <div class="card-title" style="margin:0">🏥 Estudios Médicos — ${APP.equipo.nombre}</div>
         </div>
         <div style="font-size:0.8rem;color:var(--gris3);margin-bottom:16px;padding:10px;background:var(--gris0);border-radius:8px">
-          ℹ️ <strong>Senior / mayores de 40:</strong> los estudios deben renovarse anualmente.<br>
-          <strong>Resto de categorías:</strong> solo al ingreso.
+          ℹ️ <strong>Obligación anual:</strong> todos los Senior, y los jugadores Libres mayores de 40 años.<br>
+          &nbsp;&nbsp;&nbsp;Deadline de renovación: <strong>${fechaLimite}</strong><br>
+          &nbsp;&nbsp;&nbsp;Ene–Jun: válido hasta inicio torneo siguiente · Jul–Dic: válido hasta 30/06 del año siguiente.<br>
+          <strong>Resto:</strong> solo al ingreso, sin vencimiento.
         </div>
         <div class="tabla-wrapper">
           <table>
-            <thead><tr><th>Jugador</th><th>Tipo</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Jugador</th><th>Edad</th><th>Obligación</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
             <tbody>
               ${jugadores.map(j => {
-                const em = emMap[j.id];
-                const esSeniorJug = esSeniorEquipo; // podría también verificar edad si tenemos FechaNac
-                const estadoColor = em?.estado === 'Vigente'
-                  ? 'color:#15803d;font-weight:700'
-                  : 'color:#b91c1c;font-weight:700';
+                const em        = emMap[j.id];
+                const tipoOblig = necesitaEstudioAnual(j, APP.equipo.cat);
+                const edad      = calcularEdad(j.fechaNac);
+                const edadStr   = edad !== null ? edad + ' a.' : '—';
+                const venc      = (em && tipoOblig === 'anual') ? calcularVencimientoEstudio(em.fechaEstudio, params)
+                                : (em && tipoOblig !== 'anual') ? 'Sin venc.' : '—';
+                const vigente   = (em && em.estado === 'Aprobado' && tipoOblig === 'anual') ? estudioVigente(venc) : null;
+
+                let obligHtml;
+                if (tipoOblig === 'anual') {
+                  obligHtml = `<span style="font-size:0.72rem;font-weight:700;color:#15803d">📋 Anual</span>`;
+                } else if (tipoOblig === 'sin-fecha') {
+                  obligHtml = `<span style="font-size:0.72rem;font-weight:700;color:#92400e">⚠️ Falta F.NAC</span>`;
+                } else {
+                  obligHtml = `<span style="font-size:0.72rem;color:var(--gris2)">Al ingreso</span>`;
+                }
+
+                let estadoHtml;
+                if (!em) {
+                  estadoHtml = `<span style="color:var(--gris2)">${tipoOblig==='anual'?'No presentado':'—'}</span>`;
+                } else if (em.estado === 'Aprobado') {
+                  estadoHtml = vigente === false
+                    ? `<span style="color:var(--rojo);font-weight:700">⚠️ Vencido</span>`
+                    : `<span style="color:var(--verde);font-weight:700">✅ Vigente</span>`;
+                } else if (em.estado === 'Pendiente') {
+                  estadoHtml = `<span style="color:var(--amarillo);font-weight:700">⏳ Pendiente</span>`;
+                } else {
+                  estadoHtml = `<span style="color:var(--rojo);font-weight:700">❌ ${em.estado}</span>`;
+                }
+
                 return `<tr>
                   <td class="jugador-nombre">${j.nombre}</td>
-                  <td style="font-size:0.75rem">${esSeniorJug ? 'Senior (anual)' : 'Al ingreso'}</td>
+                  <td style="font-size:0.75rem;color:var(--gris3)">${edadStr}</td>
+                  <td>${obligHtml}</td>
                   <td style="font-size:0.78rem">${em?.fechaEstudio || '—'}</td>
-                  <td style="${em ? estadoColor : 'color:var(--gris2)'}">${em?.estado || 'No presentado'}</td>
-                  <td style="font-size:0.78rem">${em?.vencimiento || (em && !esSeniorJug ? 'Sin venc.' : '—')}</td>
+                  <td>${estadoHtml}</td>
+                  <td style="font-size:0.78rem;color:${vigente===false?'var(--rojo)':'var(--gris3)'};font-weight:${vigente===false?700:400}">${venc}</td>
                   <td>
-                    <button class="btn-sm btn-ver" onclick="abrirModalSubirEstudio('${j.id}','${j.nombre.replace(/'/g,"\'")}',${esSeniorJug})">
+                    <button class="btn-sm btn-ver" onclick="abrirModalSubirEstudio('${j.id}','${j.nombre.replace(/'/g,"\\'")}',${tipoOblig==='anual'})">
                       📎 ${em ? 'Actualizar' : 'Subir'}
                     </button>
                   </td>
@@ -3803,6 +3922,324 @@ async function renderSaludAdmin() {
       </div>`;
   } catch(e) {
     cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ESTUDIOS MÉDICOS — ADMIN
+// ══════════════════════════════════════════════════════════════════
+
+// ─── Helpers de edad y categoría ─────────────────────────────────
+function calcularEdad(fechaNacStr) {
+  if (!fechaNacStr) return null;
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(fechaNacStr)) {
+    d = new Date(fechaNacStr + 'T12:00:00');
+  } else if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(fechaNacStr)) {
+    const [day, mon, yr] = fechaNacStr.split('/');
+    d = new Date(parseInt(yr), parseInt(mon) - 1, parseInt(day), 12);
+  } else return null;
+  if (isNaN(d.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - d.getFullYear();
+  const m = hoy.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) edad--;
+  return edad;
+}
+
+// Retorna: 'anual' | 'al-ingreso' | 'sin-fecha'
+// Senior → todos anual; Libre → solo ≥ 40 años anual; sin fechaNac → 'sin-fecha'
+function necesitaEstudioAnual(jugador, catEquipo) {
+  const esSenior = (catEquipo || '').toLowerCase().includes('senior');
+  if (esSenior) return 'anual';
+  const edad = calcularEdad(jugador.fechaNac);
+  if (edad === null) return 'sin-fecha';
+  return edad >= 40 ? 'anual' : 'al-ingreso';
+}
+
+// ─── Cálculo de vencimiento ──────────────────────────────────────
+// Reglas:
+//  • Estudios subidos Ene–Jun → vencen en "fechaInicioTorneoSig" (configurable por admin)
+//  • Estudios subidos Jul–Dic → vencen el 30/06 del año siguiente
+function calcularVencimientoEstudio(fechaSubidaStr, params) {
+  if (!fechaSubidaStr) return '—';
+  // Parsear DD/MM/YYYY o YYYY-MM-DD
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(fechaSubidaStr)) {
+    d = new Date(fechaSubidaStr + 'T12:00:00');
+  } else {
+    const [day, mon, yr] = fechaSubidaStr.split('/');
+    d = new Date(parseInt(yr), parseInt(mon) - 1, parseInt(day), 12);
+  }
+  if (isNaN(d.getTime())) return '—';
+  const mes = d.getMonth() + 1; // 1=Ene … 12=Dic
+  const yr  = d.getFullYear();
+  if (mes <= 6) {
+    // Ene–Jun → hasta fecha inicio torneo siguiente año (config admin)
+    return (params && params.fechaInicioTorneoSig) || ('Inicio torneo ' + (yr + 1));
+  } else {
+    // Jul–Dic → hasta 30/06 del año siguiente
+    return '30/06/' + (yr + 1);
+  }
+}
+
+// Comprueba si el estudio está vigente según la fecha de vencimiento calculada
+function estudioVigente(vencimientoStr) {
+  if (!vencimientoStr || vencimientoStr.startsWith('Inicio')) return true; // texto libre, asumir vigente
+  // Soporta 30/06/2027 o DD/MM/YYYY
+  const m = vencimientoStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return true;
+  const venc = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), 23, 59);
+  return venc >= new Date();
+}
+
+async function renderEstudiosMedicosAdmin() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = `
+    <div class="card">
+      <div class="card-title">🩺 Estudios Médicos — Vista Administrador</div>
+      <div class="form-group" style="max-width:320px">
+        <label>Seleccioná un equipo</label>
+        <select id="sel-equipo-estudios-admin" onchange="cargarEstudiosEquipoAdmin(this.value)">
+          <option value="">Elegí un equipo...</option>
+          ${EQUIPOS_FALLBACK.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('')}
+        </select>
+      </div>
+      <div id="estudios-admin-content"></div>
+    </div>`;
+}
+
+async function cargarEstudiosEquipoAdmin(equipoId) {
+  if (!equipoId) return;
+  const div = document.getElementById('estudios-admin-content');
+  div.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const [dj, dem, dp] = await Promise.all([
+      api('getJugadores',        { equipoId }),
+      api('getEstudiosMedicos',  { equipoId }),
+      api('getParametros'),
+    ]);
+    const jugadores = dj.ok  ? dj.jugadores  : [];
+    const estudios  = dem.ok ? dem.estudios   : [];
+    const params    = dp.ok  ? dp             : {};
+
+    const emMap = {};
+    estudios.forEach(e => { emMap[e.jugadorId] = e; });
+
+    const eq = EQUIPOS_FALLBACK.find(e => e.id === equipoId) || {};
+    window._adminEstudiosData = { jugadores, emMap, equipoId, params, catEquipo: eq.cat || '' };
+    renderTablaEstudiosAdmin(div);
+  } catch(e) {
+    div.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function renderTablaEstudiosAdmin(div) {
+  const { jugadores, emMap, equipoId, params, catEquipo } = window._adminEstudiosData || { jugadores:[], emMap:{}, catEquipo:'' };
+
+  const fechaLimiteDisplay    = params.fechaLimiteEstudios || 'No configurada';
+  const fechaInicioSigDisplay = params.fechaInicioTorneoSig || 'No configurada';
+
+  // Jugadores que necesitan estudio anual y no lo tienen aprobado (para aprobación masiva)
+  const sinAprobado = jugadores.filter(j => {
+    const tipo = necesitaEstudioAnual(j, catEquipo);
+    const em   = emMap[j.id];
+    return tipo === 'anual' && (!em || em.estado !== 'Aprobado');
+  });
+
+  div.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#f0f9ff;border:1.5px solid #bfdbfe;border-radius:10px;font-size:0.8rem;color:#1e40af">
+      <span>📅 <strong>Límite presentación anual:</strong> ${fechaLimiteDisplay}</span>
+      <span>🏆 <strong>Inicio torneo siguiente:</strong> ${fechaInicioSigDisplay}</span>
+    </div>
+    ${sinAprobado.length > 0 ? `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 16px;background:linear-gradient(135deg,#f0f9ff,#eff6ff);border:1.5px solid #bfdbfe;border-radius:10px">
+      <span style="font-size:0.82rem;color:#1e40af;font-weight:600">⚡ Aprobación rápida (pendientes):</span>
+      <button class="btn btn-sm" onclick="aprobarTodosEstudiosEquipo()" style="background:#1d4ed8;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600">
+        ✅ Aprobar todos
+      </button>
+      <button class="btn btn-sm" id="btn-aprobar-sel-estudios" onclick="aprobarSeleccionadosEstudios()" style="background:#059669;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600;display:none">
+        ✅ Aprobar seleccionados (<span id="cnt-sel-estudios">0</span>)
+      </button>
+    </div>` : ''}
+    <div class="tabla-wrapper">
+      <table>
+        <thead><tr>
+          ${sinAprobado.length > 0 ? `<th style="width:36px"><input type="checkbox" id="chk-todos-estudios" onchange="toggleTodosEstudios(this.checked)" title="Seleccionar pendientes"></th>` : '<th></th>'}
+          <th>#</th><th>Jugador</th><th>Edad</th><th>Obligación</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th>
+        </tr></thead>
+        <tbody>
+          ${jugadores.map((j, i) => {
+            const em         = emMap[j.id];
+            const tipoOblig  = necesitaEstudioAnual(j, catEquipo); // 'anual' | 'al-ingreso' | 'sin-fecha'
+            const edad       = calcularEdad(j.fechaNac);
+            const edadStr    = edad !== null ? edad + ' años' : '—';
+            const venc       = (em && tipoOblig === 'anual') ? calcularVencimientoEstudio(em.fechaEstudio, params)
+                             : (em && tipoOblig !== 'anual') ? 'Sin venc.' : '—';
+            const vigente    = (em && em.estado === 'Aprobado' && tipoOblig === 'anual') ? estudioVigente(venc) : null;
+            const sinAprobadoJug = tipoOblig === 'anual' && (!em || em.estado !== 'Aprobado');
+
+            // Badge de obligación
+            let obligHtml;
+            if (tipoOblig === 'anual') {
+              obligHtml = `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:700">📋 Anual</span>`;
+            } else if (tipoOblig === 'sin-fecha') {
+              obligHtml = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:700">⚠️ Falta F.NAC</span>`;
+            } else {
+              obligHtml = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-size:0.72rem">Al ingreso</span>`;
+            }
+
+            // Estado
+            let estadoHtml;
+            if (!em) {
+              estadoHtml = `<span class="estado-badge estado-sin-cargar">${tipoOblig === 'anual' ? 'No presentado' : '—'}</span>`;
+            } else if (em.estado === 'Aprobado') {
+              estadoHtml = vigente === false
+                ? `<span class="estado-badge" style="background:#fef2f2;color:#b91c1c">⚠️ Vencido</span>`
+                : `<span class="estado-badge" style="background:#dcfce7;color:#15803d">✅ Vigente</span>`;
+            } else if (em.estado === 'Pendiente') {
+              estadoHtml = `<span class="estado-badge" style="background:#fef9c3;color:#92400e">⏳ Pendiente</span>`;
+            } else {
+              estadoHtml = `<span class="estado-badge" style="background:#fef2f2;color:#b91c1c">❌ ${em.estado}</span>`;
+            }
+
+            return `<tr>
+              <td style="text-align:center">
+                ${sinAprobadoJug ? `<input type="checkbox" class="chk-estudio-jug" value="${j.id}" onchange="actualizarConteoEstudios()">` : ''}
+              </td>
+              <td style="color:var(--gris2);font-family:'JetBrains Mono',monospace;font-size:0.75rem">${i + 1}</td>
+              <td class="jugador-nombre">${j.nombre}</td>
+              <td style="font-size:0.78rem;color:var(--gris3)">${edadStr}</td>
+              <td>${obligHtml}</td>
+              <td style="font-size:0.78rem">${em?.fechaEstudio || '—'}</td>
+              <td>${estadoHtml}</td>
+              <td style="font-size:0.78rem;color:${vigente===false?'var(--rojo)':'var(--gris3)'};font-weight:${vigente===false?700:400}">${em ? venc : '—'}</td>
+              <td>
+                <div class="btn-actions">
+                  ${em ? `<button class="btn-sm btn-ver" onclick="verEstudioAdmin('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">👁 Ver</button>` : ''}
+                  ${em && em.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarEstudioIndividual('${j.id}','${equipoId}','${j.nombre.replace(/'/g,"\\'")}')">✅</button>` : ''}
+                  ${em && em.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazarEstudio('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${equipoId}')">❌</button>` : ''}
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function toggleTodosEstudios(checked) {
+  document.querySelectorAll('.chk-estudio-jug').forEach(cb => { cb.checked = checked; });
+  actualizarConteoEstudios();
+}
+
+function actualizarConteoEstudios() {
+  const sel = document.querySelectorAll('.chk-estudio-jug:checked').length;
+  const btn = document.getElementById('btn-aprobar-sel-estudios');
+  const cnt = document.getElementById('cnt-sel-estudios');
+  if (btn) { btn.style.display = sel > 0 ? 'inline-block' : 'none'; if (cnt) cnt.textContent = sel; }
+}
+
+async function aprobarTodosEstudiosEquipo() {
+  const { jugadores, equipoId, emMap, catEquipo } = window._adminEstudiosData || {};
+  if (!equipoId) return;
+  const ids = jugadores.filter(j => {
+    const tipo = necesitaEstudioAnual(j, catEquipo);
+    const em   = emMap[j.id];
+    return tipo === 'anual' && (!em || em.estado !== 'Aprobado');
+  }).map(j => j.id);
+  if (!ids.length) { showToast('No hay estudios anuales pendientes', 'info'); return; }
+  if (!confirm(`¿Aprobar estudios de ${ids.length} jugador(es) con obligación anual?`)) return;
+  await ejecutarAprobacionMasivaEstudios(equipoId, ids);
+}
+
+async function aprobarSeleccionadosEstudios() {
+  const { equipoId } = window._adminEstudiosData || {};
+  if (!equipoId) return;
+  const ids = [...document.querySelectorAll('.chk-estudio-jug:checked')].map(cb => cb.value);
+  if (!ids.length) { showToast('Seleccioná al menos un jugador', 'error'); return; }
+  if (!confirm(`¿Aprobar estudios de ${ids.length} jugador(es) seleccionado(s)?`)) return;
+  await ejecutarAprobacionMasivaEstudios(equipoId, ids);
+}
+
+async function ejecutarAprobacionMasivaEstudios(equipoId, jugadorIds) {
+  showToast('Procesando aprobaciones...', 'info');
+  try {
+    const data = await api('aprobarEstudiosMasivo', {
+      equipoId,
+      jugadorIds: JSON.stringify(jugadorIds),
+    });
+    if (data.ok) {
+      showToast(data.msg || 'Estudios aprobados ✅', 'success');
+      await cargarEstudiosEquipoAdmin(equipoId);
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function aprobarEstudioIndividual(jugadorId, equipoId, jugadorNombre) {
+  if (!confirm(`¿Aprobar estudio de ${jugadorNombre}?`)) return;
+  try {
+    const data = await api('aprobarEstudio', { jugadorId, equipoId });
+    if (data.ok) {
+      showToast('Estudio aprobado ✅', 'success');
+      await cargarEstudiosEquipoAdmin(equipoId);
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function abrirModalRechazarEstudio(jugadorId, jugadorNombre, equipoId) {
+  APP._rechEstudioJugadorId = jugadorId;
+  APP._rechEstudioEquipoId  = equipoId;
+  document.getElementById('rech-est-jugador').textContent = jugadorNombre;
+  document.getElementById('rech-est-obs').value = '';
+  abrirModal('modal-rechazar-estudio');
+}
+
+async function confirmarRechazarEstudio() {
+  const jugadorId = APP._rechEstudioJugadorId;
+  const equipoId  = APP._rechEstudioEquipoId;
+  const obs       = document.getElementById('rech-est-obs').value.trim();
+  try {
+    const data = await api('rechazarEstudio', { jugadorId, equipoId, obs });
+    if (data.ok) {
+      cerrarModal('modal-rechazar-estudio');
+      showToast('Estudio rechazado', 'success');
+      await cargarEstudiosEquipoAdmin(equipoId);
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function verEstudioAdmin(jugadorId, jugadorNombre) {
+  const body   = document.getElementById('modal-ver-estudio-body');
+  const footer = document.getElementById('modal-ver-estudio-footer');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  footer.innerHTML = '';
+  abrirModal('modal-ver-estudio');
+  try {
+    const data = await api('getEstudioMedico', { jugadorId });
+    if (!data.ok) throw new Error(data.msg);
+    const mime  = data.mimeType || '';
+    const b64   = data.archivoB64 || '';
+    const src   = `data:${mime};base64,${b64}`;
+    const { emMap, equipoId, params } = window._adminEstudiosData || {};
+    const em = emMap ? emMap[jugadorId] : null;
+    const venc = em ? calcularVencimientoEstudio(em.fechaEstudio, params || {}) : '—';
+
+    body.innerHTML = `
+      <div style="margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap">
+        <div><span style="font-size:0.75rem;color:var(--gris3);text-transform:uppercase">Jugador</span><div style="font-weight:700">${jugadorNombre}</div></div>
+        <div><span style="font-size:0.75rem;color:var(--gris3);text-transform:uppercase">Fecha</span><div>${em?.fechaEstudio||'—'}</div></div>
+        <div><span style="font-size:0.75rem;color:var(--gris3);text-transform:uppercase">Vencimiento</span><div style="font-weight:700;color:${estudioVigente(venc)?'var(--verde)':'var(--rojo)'}">${venc}</div></div>
+        <div><span style="font-size:0.75rem;color:var(--gris3);text-transform:uppercase">Estado</span><div style="font-weight:700">${em?.estado||'—'}</div></div>
+      </div>
+      ${mime.startsWith('image/')
+        ? `<img src="${src}" style="max-width:100%;border-radius:8px;border:1px solid var(--gris1)">`
+        : `<embed src="${src}" type="application/pdf" style="width:100%;height:420px;border-radius:8px">`}`;
+
+    footer.innerHTML = `
+      <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver-estudio')">Cerrar</button>`;
+  } catch(e) {
+    body.innerHTML = `<div class="empty">⚠️ ${e.message}</div>`;
   }
 }
 
