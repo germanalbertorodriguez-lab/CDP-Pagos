@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.2 — 2026-03-04 01:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.2 — 2026-03-04 02:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1737,13 +1737,33 @@ function actualizarTablaEquipoAdmin() {
   const div = document.getElementById('tabla-equipo-admin');
   if (!div) return;
 
+  // Contar sin cargar para mostrar/ocultar botones masivos
+  const sinCargar = jugadores.filter(j => {
+    const c = comps.find(c => c.jugadorId == j.id && c.mes === mes);
+    return !c || c.estado === 'Rechazado' || c.estado === 'Reemplazado';
+  });
+
   div.innerHTML = `
+    ${sinCargar.length > 0 ? `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 16px;background:linear-gradient(135deg,#f0f9ff,#eff6ff);border:1.5px solid #bfdbfe;border-radius:10px">
+      <span style="font-size:0.82rem;color:#1e40af;font-weight:600">⚡ Aprobación rápida:</span>
+      <button class="btn btn-sm" onclick="aprobarTodoMesEquipo()" style="background:#1d4ed8;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600">
+        ✅ Aprobar todo ${mes}
+      </button>
+      <button class="btn btn-sm" id="btn-aprobar-seleccionados" onclick="aprobarSeleccionadosEquipo()" style="background:#059669;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600;display:none">
+        ✅ Aprobar seleccionados (<span id="cnt-seleccionados">0</span>)
+      </button>
+    </div>` : ''}
     <div class="tabla-wrapper">
       <table>
-        <thead><tr><th>#</th><th>Jugador</th><th>Estado</th><th>Observación</th><th>Acciones</th></tr></thead>
+        <thead><tr>
+          ${sinCargar.length > 0 ? `<th style="width:36px"><input type="checkbox" id="chk-todos" onchange="toggleTodosEquipo(this.checked)" title="Seleccionar todos"></th>` : ''}
+          <th>#</th><th>Jugador</th><th>Estado</th><th>Observación</th><th>Acciones</th>
+        </tr></thead>
         <tbody>
           ${jugadores.map((j,i) => {
             const c = comps.find(c => c.jugadorId == j.id && c.mes === mes);
+            const tieneAprobadoOPendiente = c && c.estado !== 'Rechazado' && c.estado !== 'Reemplazado';
             let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
             let accionHtml = '—';
             if (c) {
@@ -1757,6 +1777,7 @@ function actualizarTablaEquipoAdmin() {
             }
             return `
               <tr>
+                ${sinCargar.length > 0 ? `<td style="text-align:center">${!tieneAprobadoOPendiente ? `<input type="checkbox" class="chk-jugador" value="${j.id}" onchange="actualizarConteoSeleccion()">` : ''}</td>` : ''}
                 <td style="color:var(--gris2);font-family:'JetBrains Mono',monospace;font-size:0.75rem">${i+1}</td>
                 <td class="jugador-nombre">${j.nombre}
                   ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">'+adminLabelMas+'</span>':''}
@@ -1770,6 +1791,66 @@ function actualizarTablaEquipoAdmin() {
         </tbody>
       </table>
     </div>`;
+}
+
+// ── APROBACIÓN MASIVA ────────────────────────────────────────────
+function toggleTodosEquipo(checked) {
+  document.querySelectorAll('.chk-jugador').forEach(cb => { cb.checked = checked; });
+  actualizarConteoSeleccion();
+}
+
+function actualizarConteoSeleccion() {
+  const seleccionados = document.querySelectorAll('.chk-jugador:checked').length;
+  const btn = document.getElementById('btn-aprobar-seleccionados');
+  const cnt = document.getElementById('cnt-seleccionados');
+  if (btn) {
+    btn.style.display = seleccionados > 0 ? 'inline-block' : 'none';
+    if (cnt) cnt.textContent = seleccionados;
+  }
+}
+
+async function aprobarTodoMesEquipo() {
+  const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
+  const { jugadores, equipoId } = window._adminEquipoData || {};
+  if (!equipoId || !jugadores) return;
+
+  const ids = jugadores.map(j => j.id);
+  if (!confirm(`¿Aprobar ${mes} para TODO el equipo (${jugadores.length} jugadores)?\n\nSe crearán comprobantes con estado "Aprobado" para los que no tengan uno cargado.`)) return;
+
+  await ejecutarAprobacionMasiva(equipoId, ids, mes);
+}
+
+async function aprobarSeleccionadosEquipo() {
+  const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
+  const { equipoId } = window._adminEquipoData || {};
+  if (!equipoId) return;
+
+  const ids = [...document.querySelectorAll('.chk-jugador:checked')].map(cb => cb.value);
+  if (!ids.length) { showToast('Seleccioná al menos un jugador', 'error'); return; }
+
+  if (!confirm(`¿Aprobar ${mes} para ${ids.length} jugador(es) seleccionado(s)?`)) return;
+
+  await ejecutarAprobacionMasiva(equipoId, ids, mes);
+}
+
+async function ejecutarAprobacionMasiva(equipoId, jugadorIds, mes) {
+  showToast('Procesando aprobaciones...', 'info');
+  try {
+    const data = await api('aprobarMasivo', {
+      equipoId,
+      jugadorIds: JSON.stringify(jugadorIds),
+      mes
+    });
+    if (data.ok) {
+      showToast(`${data.msg}`, 'success');
+      // Recargar datos del equipo
+      await cargarEquipoAdmin(equipoId);
+    } else {
+      showToast('Error: ' + (data.msg || 'Error desconocido'), 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
