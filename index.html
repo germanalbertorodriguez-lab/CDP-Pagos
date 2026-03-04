@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- PAGOS CDP — Frontend v5.2 — 2026-03-04 01:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -922,6 +923,7 @@ function guardarSesionLocal() {
       rol: APP.rol,
       token: APP.token,
       equipo: APP.equipo,
+      nombrePila: APP.nombrePila,
       ts: Date.now(),
     }));
   } catch(e) { console.warn('[CDP] No se pudo guardar sesión local:', e); }
@@ -952,6 +954,7 @@ let APP = {
   rol: null,            // 'delegado' | 'admin'
   token: null,          // token de sesión (auth)
   equipo: null,         // objeto equipo del delegado
+  nombrePila: '',       // nombre de pila del usuario logueado
   equipos: [],          // todos los equipos
   jugadores: [],        // jugadores del equipo actual (delegado)
   comprobantes: [],     // comprobantes cargados
@@ -1160,6 +1163,7 @@ async function doLogin() {
       APP.rol = 'delegado';
       APP.token = data.token;
       APP.equipo = data.equipo;
+      APP.nombrePila = data.nombrePila || '';
       guardarSesionLocal();
       console.log('[CDP] Login delegado OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
@@ -1191,6 +1195,7 @@ async function doAdminLogin() {
       }
       APP.rol = 'admin';
       APP.token = data.token;
+      APP.nombrePila = data.nombrePila || '';
       guardarSesionLocal();
       console.log('[CDP] Login admin OK, token recibido:', APP.token.substring(0,8) + '...');
       iniciarApp();
@@ -1213,7 +1218,7 @@ function doLogout() {
     api('logout', { token: APP.token }).catch(() => {}); // fire and forget
   }
   limpiarSesionLocal();
-  APP = { rol:null, token:null, equipo:null, equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
+  APP = { rol:null, token:null, equipo:null, nombrePila:'', equipos:EQUIPOS_FALLBACK, jugadores:[], comprobantes:[],
     mesSeleccionado:CONFIG.MES_ACTUAL, paginaActual:1, porPagina:25,
     filtroEstado:'Pendiente', filtroEquipo:'', filtroMes:CONFIG.MES_ACTUAL,
     modalJugadorId:null, modalJugadorNombre:null, modalComprobanteId:null, archivoSeleccionado:null
@@ -1235,7 +1240,8 @@ function iniciarApp() {
   document.getElementById('header-subtitulo').textContent =
     APP.rol === 'admin' ? 'Panel de Administración' : APP.equipo.nombre;
   const badge = document.getElementById('badge-role');
-  badge.textContent = APP.rol === 'admin' ? 'Admin' : 'Delegado';
+  const rolLabel = APP.rol === 'admin' ? 'Admin' : 'Delegado';
+  badge.textContent = APP.nombrePila ? APP.nombrePila : rolLabel;
   badge.className = 'badge-role ' + (APP.rol === 'admin' ? 'badge-admin' : 'badge-delegado');
 
   // Tabs
@@ -3763,6 +3769,7 @@ cargarEquiposSelect();
     APP.token = sesion.token;
     APP.rol = sesion.rol;
     APP.equipo = sesion.equipo;
+    APP.nombrePila = sesion.nombrePila || '';
 
     if (sesion.rol === 'admin') {
       const check = await api('getParametros');
