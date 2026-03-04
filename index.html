@@ -5,14 +5,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pagos CDP</title>
-<link rel="icon" type="image/png" sizes="32x32"   href="https://cdpcedelu.github.io/CDP-Pagos/Preview.png">
-<link rel="icon" type="image/png" sizes="192x192" href="https://cdpcedelu.github.io/CDP-Pagos/Preview.png">
-<link rel="apple-touch-icon"                       href="https://cdpcedelu.github.io/CDP-Pagos/Preview.png">
-<meta property="og:title"       content="Pagos CDP — Club de Profesionales">
-<meta property="og:description" content="Sistema de gestión de pagos y habilitaciones del CDP">
-<meta property="og:image"       content="https://cdpcedelu.github.io/CDP-Pagos/Preview.png">
-<meta property="og:url"         content="https://cdpcedelu.github.io/CDP-Pagos/">
-<meta property="og:type"        content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1949,12 +1941,19 @@ async function abrirModalVer(comprobanteId) {
   const body = document.getElementById('modal-ver-body');
   const footer = document.getElementById('modal-ver-footer');
   body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  // Admin → modal más ancho para ver mejor el comprobante
+  const modalEl = document.querySelector('#modal-ver .modal');
+  if (modalEl) modalEl.style.maxWidth = APP.rol === 'admin' ? '900px' : '520px';
+
   abrirModal('modal-ver');
 
   try {
     const data = await api('getComprobante', { id: comprobanteId });
     if (!data.ok) throw new Error(data.msg);
     const c = data.comprobante;
+
+    const isAdmin = APP.rol === 'admin';
 
     body.innerHTML = `
       <div class="modal-info">
@@ -1968,8 +1967,10 @@ async function abrirModalVer(comprobanteId) {
       </div>
       ${c.archivoB64
         ? (c.esImagen
-          ? `<img src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante" style="max-width:100%;border-radius:8px;margin-top:12px;display:block">`
-          : `<embed src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf" width="100%" height="420px" style="border-radius:8px;margin-top:12px;display:block">
+          ? `<img src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante"
+               style="width:100%;${isAdmin?'max-height:70vh;object-fit:contain;':'max-width:100%;'}border-radius:8px;margin-top:12px;display:block">`
+          : `<embed src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf" width="100%"
+               height="${isAdmin ? '650px' : '420px'}" style="border-radius:8px;margin-top:12px;display:block">
              <p style="font-size:0.78rem;color:var(--gris3);margin-top:6px;text-align:center">Si no se visualiza el PDF, usá el botón Descargar ↓</p>`)
         : '<div class="empty" style="padding:20px">Sin archivo disponible</div>'}`;
 
@@ -1981,6 +1982,8 @@ async function abrirModalVer(comprobanteId) {
       <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver')">Cerrar</button>
       ${APP.rol==='admin' && c.estado!=='Aprobado'
         ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${comprobanteId}');cerrarModal('modal-ver')">✅ Aprobar</button>`:''}
+      ${APP.rol==='admin' && c.estado==='Aprobado'
+        ? `<button class="btn-sm btn-revocar" onclick="cerrarModal('modal-ver');revocarComprobante('${comprobanteId}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}')">↩ Revocar</button>`:''}
       ${APP.rol==='admin' && c.estado!=='Rechazado'
         ? `<button class="btn-sm btn-rechazar" onclick="cerrarModal('modal-ver');abrirModalRechazar('${comprobanteId}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}','${c.equipoId}')">❌ Rechazar</button>`:''}`;
   } catch(e) {
