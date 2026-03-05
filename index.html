@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.5 — 2026-03-05 13:50 ARG -->
+<!-- PAGOS CDP — Frontend v5.6 — 2026-03-05 14:10 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1961,11 +1961,11 @@ async function abrirModalVer(comprobanteId) {
     const c = data.comprobante;
 
     const isAdmin = APP.rol === 'admin';
-    // Zoom: arranca en 150% (idx=3), va de 60% a 300%
-    const ZOOM_STEPS  = [0.6, 0.8, 1, 1.5, 1.85, 2.2, 2.6, 3.0];
-    const ZOOM_LABELS = ['60%','80%','100%','150%','185%','220%','260%','300%'];
-    const ZOOM_START  = 3; // 150%
-    const pdfHeightBase = isAdmin ? 650 : 420;
+    // Zoom: arranca en 100% (imagen ya ocupa todo el ancho del modal), puede subir hasta 300%
+    const ZOOM_STEPS  = [0.5, 0.75, 1, 1.5, 2.0, 2.5, 3.0];
+    const ZOOM_LABELS = ['50%','75%','100%','150%','200%','250%','300%'];
+    const ZOOM_START  = 2; // 100% — la imagen llena el modal de entrada
+    const pdfHeightBase = isAdmin ? 700 : 450;
 
     const zoomBarHtml = c.archivoB64 ? `
       <div id="zoom-bar" style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;justify-content:flex-end">
@@ -1988,11 +1988,16 @@ async function abrirModalVer(comprobanteId) {
       ${zoomBarHtml}
       ${c.archivoB64
         ? (c.esImagen
-          ? `<div style="overflow:auto;margin-top:4px;border-radius:8px;background:var(--fondo2);padding:4px">
-               <img id="preview-img" src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante"
-                 style="width:${Math.round(ZOOM_STEPS[ZOOM_START]*100)}%;display:block;border-radius:8px;min-width:100%">
+          ? `<div id="img-wrapper" style="overflow:auto;margin-top:4px;border-radius:8px;background:var(--fondo2);padding:4px;max-height:65vh">
+               <div id="img-scaler" style="transform-origin:top left;transition:transform 0.2s">
+                 <img id="preview-img" src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante"
+                   style="width:100%;height:auto;display:block;border-radius:6px">
+               </div>
              </div>`
-          : `<embed id="preview-pdf" src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf" width="100%" height="${Math.round(pdfHeightBase*ZOOM_STEPS[ZOOM_START])}px" style="border-radius:8px;margin-top:4px;display:block">
+          : `<div style="overflow:auto;margin-top:4px;max-height:70vh">
+               <embed id="preview-pdf" src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf"
+                 style="width:100%;height:${pdfHeightBase}px;border-radius:8px;display:block">
+             </div>
              <p style="font-size:0.78rem;color:var(--gris3);margin-top:6px;text-align:center">Si no se visualiza el PDF, usá el botón Descargar ↓</p>`)
         : '<div class="empty" style="padding:20px">Sin archivo disponible</div>'}`;
 
@@ -2006,8 +2011,17 @@ async function abrirModalVer(comprobanteId) {
       const scale = window._zoomSteps[window._zoomIdx];
       const label = document.getElementById('zoom-label');
       if (label) label.textContent = window._zoomLabels[window._zoomIdx];
-      const img = document.getElementById('preview-img');
-      if (img) img.style.width = Math.round(scale * 100) + '%';
+      // Imagen: escalar el contenedor interno, el wrapper hace scroll
+      const scaler = document.getElementById('img-scaler');
+      if (scaler) {
+        scaler.style.transform = `scale(${scale})`;
+        // Expandir el scaler para que el wrapper sepa el tamaño real
+        scaler.style.width = `${100/scale}%`;
+        scaler.style.height = scaler.children[0]
+          ? Math.round(scaler.children[0].naturalHeight * scale * scaler.children[0].offsetWidth / scaler.children[0].naturalWidth) + 'px'
+          : '';
+      }
+      // PDF: ajustar altura del embed
       const pdf = document.getElementById('preview-pdf');
       if (pdf) pdf.style.height = Math.round(window._pdfHeightBase * scale) + 'px';
     };
