@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.6 — 2026-03-05 14:10 ARG -->
+<!-- PAGOS CDP — Frontend v5.7 — 2026-03-05 18:50 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4250,7 +4250,7 @@ async function aprobarSeleccionadosEstudios() {
 async function ejecutarAprobacionMasivaEstudios(equipoId, jugadorIds) {
   showToast('Procesando aprobaciones...', 'info');
   try {
-    const data = await api('aprobarEstudiosMasivo', {
+    const data = await api('aprobarMasivo', {
       equipoId,
       jugadorIds: JSON.stringify(jugadorIds),
     });
