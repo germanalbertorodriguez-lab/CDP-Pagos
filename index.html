@@ -1951,10 +1951,20 @@ async function abrirModalVer(comprobanteId) {
   body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   abrirModal('modal-ver');
 
+  // Modal más grande para admin
+  const modalEl = document.getElementById('modal-ver');
+  if (modalEl) modalEl.style.maxWidth = APP.rol === 'admin' ? '900px' : '520px';
+
   try {
     const data = await api('getComprobante', { id: comprobanteId });
     if (!data.ok) throw new Error(data.msg);
     const c = data.comprobante;
+
+    const isAdmin = APP.rol === 'admin';
+    const imgStyle = isAdmin
+      ? 'width:100%;max-height:70vh;object-fit:contain;border-radius:8px;margin-top:12px;display:block'
+      : 'max-width:100%;border-radius:8px;margin-top:12px;display:block';
+    const pdfHeight = isAdmin ? '650px' : '420px';
 
     body.innerHTML = `
       <div class="modal-info">
@@ -1968,8 +1978,8 @@ async function abrirModalVer(comprobanteId) {
       </div>
       ${c.archivoB64
         ? (c.esImagen
-          ? `<img src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante" style="max-width:100%;border-radius:8px;margin-top:12px;display:block">`
-          : `<embed src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf" width="100%" height="420px" style="border-radius:8px;margin-top:12px;display:block">
+          ? `<img src="data:${c.mimeType};base64,${c.archivoB64}" class="comprobante-preview" alt="Comprobante" style="${imgStyle}">`
+          : `<embed src="data:application/pdf;base64,${c.archivoB64}" type="application/pdf" width="100%" height="${pdfHeight}" style="border-radius:8px;margin-top:12px;display:block">
              <p style="font-size:0.78rem;color:var(--gris3);margin-top:6px;text-align:center">Si no se visualiza el PDF, usá el botón Descargar ↓</p>`)
         : '<div class="empty" style="padding:20px">Sin archivo disponible</div>'}`;
 
@@ -1979,6 +1989,8 @@ async function abrirModalVer(comprobanteId) {
     }
     footer.innerHTML = `
       <button class="btn-sm btn-ver" onclick="cerrarModal('modal-ver')">Cerrar</button>
+      ${APP.rol==='admin' && c.estado==='Aprobado'
+        ? `<button class="btn-sm btn-revocar" onclick="cerrarModal('modal-ver');revocarComprobante('${comprobanteId}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}')">↩ Revocar</button>`:''}
       ${APP.rol==='admin' && c.estado!=='Aprobado'
         ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${comprobanteId}');cerrarModal('modal-ver')">✅ Aprobar</button>`:''}
       ${APP.rol==='admin' && c.estado!=='Rechazado'
