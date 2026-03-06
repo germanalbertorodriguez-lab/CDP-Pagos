@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.19 — 2026-03-06 00:15 ARG -->
+<!-- PAGOS CDP — Frontend v5.20 — 2026-03-06 00:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1777,15 +1777,6 @@ async function cargarEquipoAdmin(equipoId) {
     // Mapa jugadorId → nota admin
     const notasMap = (dn.ok && dn.notas) ? dn.notas : {};
     // Cargar notas admin para todos los jugadores del equipo
-    const notasMap = {};
-    try {
-      const jugIds = jugadores.map(j => j.id);
-      await Promise.all(jugIds.map(async jid => {
-        const nd = await api('getNotaAdmin', { jugadorId: jid });
-        if (nd.ok && nd.nota) notasMap[String(jid)] = nd.nota;
-      }));
-    } catch(e) {}
-
     div.innerHTML = `
       <div class="mes-selector" style="margin:14px 0">
         <label>Mes:</label>
