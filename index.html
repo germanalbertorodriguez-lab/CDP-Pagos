@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.17 — 2026-03-05 23:35 ARG -->
+<!-- PAGOS CDP — Frontend v5.19 — 2026-03-06 00:15 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1761,10 +1761,11 @@ async function cargarEquipoAdmin(equipoId) {
   const div = document.getElementById('equipo-admin-content');
   div.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const [dj, dc, dh] = await Promise.all([
+    const [dj, dc, dh, dn] = await Promise.all([
       api('getJugadores', {equipoId}),
       api('getComprobantes', {equipoId}),
       api('getHabilitaciones', {equipoId}),
+      api('getNotasEquipo', {equipoId}),
     ]);
     const jugadores = dj.ok ? dj.jugadores : [];
     const comps = dc.ok ? dc.comprobantes : [];
@@ -1773,6 +1774,17 @@ async function cargarEquipoAdmin(equipoId) {
     if (dh.ok && dh.jugadores) {
       dh.jugadores.forEach(h => { habMap[String(h.id)] = h; });
     }
+    // Mapa jugadorId → nota admin
+    const notasMap = (dn.ok && dn.notas) ? dn.notas : {};
+    // Cargar notas admin para todos los jugadores del equipo
+    const notasMap = {};
+    try {
+      const jugIds = jugadores.map(j => j.id);
+      await Promise.all(jugIds.map(async jid => {
+        const nd = await api('getNotaAdmin', { jugadorId: jid });
+        if (nd.ok && nd.nota) notasMap[String(jid)] = nd.nota;
+      }));
+    } catch(e) {}
 
     div.innerHTML = `
       <div class="mes-selector" style="margin:14px 0">
@@ -1784,7 +1796,7 @@ async function cargarEquipoAdmin(equipoId) {
       <div id="tabla-equipo-admin"></div>`;
 
     // Guardar datos para la tabla
-    window._adminEquipoData = { jugadores, comps, habMap, equipoId };
+    window._adminEquipoData = { jugadores, comps, habMap, notasMap, equipoId };
     actualizarTablaEquipoAdmin();
   } catch(e) {
     div.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
@@ -1793,7 +1805,7 @@ async function cargarEquipoAdmin(equipoId) {
 
 function actualizarTablaEquipoAdmin() {
   const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
-  const { jugadores, comps, habMap: habMapEquipo, equipoId: adminEqId } = window._adminEquipoData || { jugadores:[], comps:[], habMap:{} };
+  const { jugadores, comps, habMap: habMapEquipo, notasMap: notasMapEquipo, equipoId: adminEqId } = window._adminEquipoData || { jugadores:[], comps:[], habMap:{}, notasMap:{} };
   const adminLabelMas = getLabelMasById(adminEqId);
   const div = document.getElementById('tabla-equipo-admin');
   if (!div) return;
@@ -1837,17 +1849,26 @@ function actualizarTablaEquipoAdmin() {
                   ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${j.nombre.replace(/'/g,"\\'")}','${mes}','')">❌</button>` : ''}
                 </div>`;
             }
-            // Badge de habilitación
-            const hab = (habMapEquipo||{})[String(j.id)];
-            let habBadge = '';
-            if (hab) {
-              if (hab.estado === 'Habilitado') {
-                habBadge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:12px;background:#dcfce7;color:#15803d;margin-left:6px">✅ HAB</span>';
-              } else {
-                const motivo = (hab.detalle||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-                habBadge = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:12px;background:#fef2f2;color:#b91c1c;margin-left:6px;cursor:default" title="${motivo}">🚫 NO HAB</span>`;
-              }
-            }
+             // Badge de habilitación
+             const hab = (habMapEquipo||{})[String(j.id)];
+             let habBadge = '';
+             if (hab) {
+               if (hab.estado === 'Habilitado') {
+                 habBadge = '<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:12px;background:#dcfce7;color:#15803d;margin-left:6px;white-space:nowrap">✅ Habilitado</span>';
+               } else {
+                 const motivo = hab.detalle || hab.estado || 'Inhabilitado';
+                 const colorBg = hab.estado === 'I. Deportiva' ? '#eff6ff' : hab.estado === 'I. Medica' ? '#fefce8' : '#fef2f2';
+                 const colorTx = hab.estado === 'I. Deportiva' ? '#1d4ed8' : hab.estado === 'I. Medica' ? '#a16207' : '#b91c1c';
+                 const icon    = hab.estado === 'I. Deportiva' ? '🟡' : hab.estado === 'I. Medica' ? '🟠' : '🔴';
+                 habBadge = `<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:12px;background:${colorBg};color:${colorTx};margin-left:6px;white-space:nowrap">${icon} NO HAB</span>`
+                          + `<span style="display:block;font-size:0.68rem;color:${colorTx};margin-top:2px;font-style:italic">${motivo}</span>`;
+               }
+             }
+               // Badge de nota admin
+               const notaObj = (notasMapEquipo||{})[String(j.id)];
+               const notaBadge = notaObj
+                 ? `<button onclick="abrirNotaAdminModal('${j.id}','${j.nombre.replace(/'/g,"&#39;")}')" style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:12px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;margin-left:6px;cursor:pointer;white-space:nowrap">📝 Nota</button>`
+                 : `<button onclick="abrirNotaAdminModal('${j.id}','${j.nombre.replace(/'/g,"&#39;")}')" style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:12px;background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;margin-left:6px;cursor:pointer;white-space:nowrap">📝</button>`;
             return `
               <tr>
                 ${sinCargar.length > 0 ? `<td style="text-align:center">${!tieneAprobadoOPendiente ? `<input type="checkbox" class="chk-jugador" value="${j.id}" onchange="actualizarConteoSeleccion()">` : ''}</td>` : ''}
@@ -1856,6 +1877,7 @@ function actualizarTablaEquipoAdmin() {
                   ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">'+adminLabelMas+'</span>':''}
                   ${j.ic?'<span class="badge-ic" style="margin-left:4px">IC</span>':''}
                   ${habBadge}
+                  ${notaBadge}
                 </td>
                 <td>${estadoHtml}</td>
                 <td>${c?.obsAdmin?`<span class="obs-tag" title="${c.obsAdmin}">${c.obsAdmin}</span>`:'—'}</td>
@@ -2090,6 +2112,145 @@ async function abrirModalVer(comprobanteId) {
 }
 
 // ── NOTAS ADMIN ────────────────────────────────────────────────────
+
+// Modal de nota desde la tabla Por Equipo (sin contexto de comprobante)
+function abrirNotaAdminModal(jugadorId, jugadorNombre, notaActual) {
+  document.getElementById('modal-nota-equipo-overlay')?.remove();
+  const equipoId = window._adminEquipoData?.equipoId || '';
+  const wrapper = document.createElement('div');
+  wrapper.id = 'modal-nota-equipo-overlay';
+  wrapper.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  wrapper.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35)">
+      <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;color:#1e293b">📝 Nota privada</div>
+      <div style="font-size:0.88rem;color:#64748b;margin-bottom:16px;font-weight:500">${jugadorNombre}</div>
+      ${notaActual ? `<div style="background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:10px 12px;font-size:0.88rem;color:#78350f;margin-bottom:14px;white-space:pre-wrap">${notaActual}</div>` : ''}
+      <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:6px">${notaActual ? 'Editar nota:' : 'Nueva nota:'}</label>
+      <textarea id="nota-equipo-input" rows="4" placeholder="Ej: Pagó 1/3 inscripción. Debe cuotas 2 y 3..."
+        style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.88rem;resize:vertical;box-sizing:border-box;background:#fff;color:#1e293b">${notaActual}</textarea>
+      <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px">
+        <div>
+          ${notaActual ? `<button onclick="eliminarNotaAdminEquipo('${jugadorId}')" style="padding:8px 14px;border-radius:9px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;cursor:pointer;font-size:0.85rem;font-weight:600">🗑 Eliminar</button>` : ''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="document.getElementById('modal-nota-equipo-overlay').remove()" style="padding:8px 18px;border-radius:9px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;font-size:0.88rem">Cancelar</button>
+          <button onclick="guardarNotaAdminEquipo('${jugadorId}','${equipoId}','${jugadorNombre.replace(/'/g,"&#39;")}')" style="padding:8px 20px;border-radius:9px;border:none;background:#d97706;color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  wrapper.addEventListener('click', e => { if (e.target === wrapper) wrapper.remove(); });
+  document.body.appendChild(wrapper);
+  setTimeout(() => document.getElementById('nota-equipo-input')?.focus(), 50);
+}
+
+async function guardarNotaAdminEquipo(jugadorId, equipoId, nombre) {
+  const nota = document.getElementById('nota-equipo-input')?.value?.trim();
+  if (!nota) { showToast('Escribí algo antes de guardar', 'error'); return; }
+  try {
+    const data = await api('setNotaAdmin', { jugadorId, equipoId, nombre, nota });
+    if (data.ok) {
+      showToast('Nota guardada 📝', 'success');
+      document.getElementById('modal-nota-equipo-overlay')?.remove();
+      // Actualizar notasMap local y refrescar tabla
+      if (window._adminEquipoData) {
+        window._adminEquipoData.notasMap[String(jugadorId)] = { nota, fecha: 'ahora' };
+        actualizarTablaEquipoAdmin();
+      }
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function eliminarNotaAdminEquipo(jugadorId) {
+  if (!confirm('¿Eliminar esta nota?')) return;
+  try {
+    const data = await api('deleteNotaAdmin', { jugadorId });
+    if (data.ok) {
+      showToast('Nota eliminada', 'success');
+      document.getElementById('modal-nota-equipo-overlay')?.remove();
+      if (window._adminEquipoData) {
+        delete window._adminEquipoData.notasMap[String(jugadorId)];
+        actualizarTablaEquipoAdmin();
+      }
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// Modal de nota admin desde la tabla Por Equipo
+function abrirNotaAdminModal(jugadorId, jugadorNombre) {
+  const equipoId  = window._adminEquipoData?.equipoId || '';
+  const notasMap  = window._adminEquipoData?.notasMap || {};
+  const notaObj   = notasMap[String(jugadorId)];
+  const notaTexto = notaObj?.nota || '';
+  const notaFecha = notaObj?.fecha || '';
+
+  document.getElementById('modal-nota-admin-overlay')?.remove();
+  const wrapper = document.createElement('div');
+  wrapper.id = 'modal-nota-admin-overlay';
+  wrapper.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  wrapper.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:26px 24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:1.2rem">📝</span>
+        <span style="font-weight:700;font-size:1rem;color:#1e293b">Nota privada Admin</span>
+      </div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:16px;font-weight:500">${jugadorNombre}</div>
+      ${notaTexto
+        ? `<div style="background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:12px;margin-bottom:12px">
+             <div style="font-size:0.88rem;color:#78350f;white-space:pre-wrap">${notaTexto}</div>
+             ${notaFecha ? `<div style="font-size:0.72rem;color:#a8a29e;margin-top:6px">Última modificación: ${notaFecha}</div>` : ''}
+           </div>`
+        : `<div style="font-size:0.85rem;color:#94a3b8;font-style:italic;margin-bottom:12px">Sin notas aún.</div>`
+      }
+      <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:5px">${notaTexto ? 'Modificar nota:' : 'Nueva nota:'}</label>
+      <textarea id="nota-modal-input" rows="3" placeholder="Ej: Pagó 1/3 inscripción. Debe cuotas 2 y 3..." style="width:100%;padding:9px;border:1.5px solid #e2e8f0;border-radius:9px;font-family:inherit;font-size:0.88rem;resize:vertical;box-sizing:border-box;background:#fff;margin-bottom:14px">${notaTexto}</textarea>
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+        <div>
+          ${notaTexto ? `<button onclick="eliminarNotaDesdeTabla('${jugadorId}')" style="padding:7px 14px;border-radius:8px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;cursor:pointer;font-size:0.82rem">🗑 Eliminar</button>` : ''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="document.getElementById('modal-nota-admin-overlay').remove()" style="padding:7px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;font-size:0.88rem">Cancelar</button>
+          <button onclick="guardarNotaDesdeTabla('${jugadorId}','${equipoId}','${jugadorNombre.replace(/'/g,"&#39;")}')" style="padding:7px 18px;border-radius:8px;border:none;background:#d97706;color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  wrapper.addEventListener('click', e => { if (e.target === wrapper) wrapper.remove(); });
+  document.body.appendChild(wrapper);
+  document.getElementById('nota-modal-input')?.focus();
+}
+
+async function guardarNotaDesdeTabla(jugadorId, equipoId, nombre) {
+  const nota = document.getElementById('nota-modal-input')?.value?.trim();
+  if (!nota) { showToast('Escribí algo antes de guardar', 'error'); return; }
+  try {
+    const data = await api('setNotaAdmin', { jugadorId, equipoId, nombre, nota });
+    if (data.ok) {
+      showToast('Nota guardada 📝', 'success');
+      // Actualizar el mapa local para que el badge refleje el cambio sin recargar
+      if (window._adminEquipoData) {
+        if (!window._adminEquipoData.notasMap) window._adminEquipoData.notasMap = {};
+        window._adminEquipoData.notasMap[String(jugadorId)] = { nota, fecha: 'ahora' };
+      }
+      document.getElementById('modal-nota-admin-overlay')?.remove();
+      actualizarTablaEquipoAdmin(); // refrescar tabla para mostrar badge actualizado
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function eliminarNotaDesdeTabla(jugadorId) {
+  if (!confirm('¿Eliminar la nota de este jugador?')) return;
+  try {
+    const data = await api('deleteNotaAdmin', { jugadorId });
+    if (data.ok) {
+      showToast('Nota eliminada', 'success');
+      if (window._adminEquipoData?.notasMap) {
+        delete window._adminEquipoData.notasMap[String(jugadorId)];
+      }
+      document.getElementById('modal-nota-admin-overlay')?.remove();
+      actualizarTablaEquipoAdmin();
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 function toggleEditarNota(jugadorId, equipoId, jugadorNombre) {
   const editor = document.getElementById('nota-admin-editor');
   if (!editor) return;
