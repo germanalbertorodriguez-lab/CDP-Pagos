@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.23 — 2026-03-06 10:40 ARG -->
+<!-- PAGOS CDP — Frontend v5.24 — 2026-03-06 12:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3972,7 +3972,7 @@ async function renderEstudiosMedicosDelegado(cnt) {
           <table>
             <thead><tr><th>Jugador</th><th>Edad</th><th>Obligación</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
             <tbody>
-              ${jugadores.map(j => {
+              ${jugadores.filter(j => !String(j.tipoSocio||'').toLowerCase().includes('col')).map(j => {
                 const em        = emMap[j.id];
                 const tipoOblig = necesitaEstudioAnual(j, APP.equipo.cat);
                 const edad      = calcularEdad(j.fechaNac);
@@ -4315,11 +4315,29 @@ function calcularEdad(fechaNacStr) {
 // Retorna: 'anual' | 'al-ingreso' | 'sin-fecha'
 // Senior → todos anual; Libre → solo ≥ 40 años anual; sin fechaNac → 'sin-fecha'
 function necesitaEstudioAnual(jugador, catEquipo) {
+  // Colaborador (ACTIVO COL): sin obligación de estudios
+  if (String(jugador.tipoSocio||'').toLowerCase().includes('col')) return 'sin-obligacion';
   const esSenior = (catEquipo || '').toLowerCase().includes('senior');
   if (esSenior) return 'anual';
-  const edad = calcularEdad(jugador.fechaNac);
+  if (!jugador.fechaNac) return 'sin-fecha';
+  // Cumple 40 este año calendario → obligación anual aunque aún tenga 39
+  const nacDate = (() => {
+    const fn = jugador.fechaNac;
+    if (/^\d{4}-\d{2}-\d{2}/.test(fn)) return new Date(fn + 'T12:00:00');
+    if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(fn)) {
+      const [d,m,y] = fn.split('/');
+      return new Date(parseInt(y), parseInt(m)-1, parseInt(d), 12);
+    }
+    return null;
+  })();
+  if (!nacDate || isNaN(nacDate.getTime())) return 'sin-fecha';
+  const anioNac  = nacDate.getFullYear();
+  const anioHoy  = new Date().getFullYear();
+  const edad     = calcularEdad(jugador.fechaNac);
   if (edad === null) return 'sin-fecha';
-  return edad >= 40 ? 'anual' : 'al-ingreso';
+  // Cumple 40 en el año en curso (aunque aún tenga 39) → anual
+  if (edad >= 40 || (anioHoy - anioNac) >= 40) return 'anual';
+  return 'al-ingreso';
 }
 
 // ─── Cálculo de vencimiento ──────────────────────────────────────
@@ -4434,7 +4452,7 @@ function renderTablaEstudiosAdmin(div) {
           <th>#</th><th>Jugador</th><th>Edad</th><th>Obligación</th><th>Fecha Estudio</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th>
         </tr></thead>
         <tbody>
-          ${jugadores.map((j, i) => {
+          ${jugadores.filter(j => !String(j.tipoSocio||'').toLowerCase().includes('col')).map((j, i) => {
             const em         = emMap[j.id];
             const tipoOblig  = necesitaEstudioAnual(j, catEquipo); // 'anual' | 'al-ingreso' | 'sin-fecha'
             const edad       = calcularEdad(j.fechaNac);
