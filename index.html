@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.12 — 2026-03-05 22:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.13 — 2026-03-05 22:15 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4189,12 +4189,13 @@ function renderTablaEstudiosAdmin(div) {
               estadoHtml = `<span class="estado-badge" style="background:#fef2f2;color:#b91c1c">❌ ${em.estado}</span>`;
             }
 
+            const jid = j.id;
+            const jnm = j.nombre.replace(/'/g, '&#39;');
             let accionesHtml = '';
+            // Botón 📅 siempre visible para todos
+            accionesHtml += `<button class="btn-sm" title="Editar fecha presentación" onclick="abrirEditarFechaEstudio('${jid}','${jnm}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.8rem">📅</button>`;
             if (em) {
-              const jid = j.id;
-              const jnm = j.nombre.replace(/'/g, '&#39;');
               accionesHtml += `<button class="btn-sm btn-ver" onclick="verEstudioAdmin('${jid}','${jnm}')">👁 Ver</button>`;
-              accionesHtml += `<button class="btn-sm" title="Editar fecha presentación" onclick="abrirEditarFechaEstudio('${jid}','${jnm}')">📅</button>`;
               if (em.estado !== 'Aprobado') accionesHtml += `<button class="btn-sm btn-aprobar" onclick="aprobarEstudioIndividual('${jid}','${equipoId}','${jnm}')">✅</button>`;
               if (em.estado !== 'Rechazado') accionesHtml += `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazarEstudio('${jid}','${jnm}','${equipoId}')">❌</button>`;
             }
