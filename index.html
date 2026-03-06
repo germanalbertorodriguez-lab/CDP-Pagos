@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.20 — 2026-03-06 00:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.21 — 2026-03-06 01:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1629,16 +1629,25 @@ async function renderAdmin() {
           <table>
             <thead><tr><th>Equipo</th><th>Categoría</th><th>Jugadores</th><th>Aprobados</th><th>Pendientes</th><th>Rechazados</th><th>Sin cargar</th></tr></thead>
             <tbody>
-              ${(porEquipo||[]).map(e=>`
-                <tr>
-                  <td class="jugador-nombre">${e.nombre}</td>
+              ${(porEquipo||[]).map(e=>{
+                const cargados  = e.aprobados + e.pendientes + e.rechazados;
+                const pct       = e.total > 0 ? Math.round(cargados / e.total * 100) : 0;
+                const sinCargar = Math.max(0, e.total - cargados);
+                const rowBg     = pct < 25  ? 'background:rgba(239,68,68,0.10)'
+                                : pct < 70  ? 'background:rgba(251,191,36,0.13)'
+                                :             'background:rgba(34,197,94,0.10)';
+                const pctColor  = pct < 25  ? '#b91c1c' : pct < 70 ? '#92400e' : '#15803d';
+                const pctBadge  = `<span style="font-size:0.72rem;font-weight:700;padding:1px 7px;border-radius:10px;background:${pct<25?'#fef2f2':pct<70?'#fefce8':'#dcfce7'};color:${pctColor};margin-left:6px">${pct}%</span>`;
+                return `<tr style="${rowBg}">
+                  <td class="jugador-nombre">${e.nombre}${pctBadge}</td>
                   <td style="font-size:0.78rem;color:var(--gris3)">${e.cat}</td>
                   <td style="text-align:center">${e.total}</td>
                   <td style="text-align:center;color:var(--verde);font-weight:600">${e.aprobados}</td>
                   <td style="text-align:center;color:var(--amarillo);font-weight:600">${e.pendientes}</td>
                   <td style="text-align:center;color:var(--rojo);font-weight:600">${e.rechazados}</td>
-                  <td style="text-align:center;color:var(--gris2)">${e.total - e.aprobados - e.pendientes - e.rechazados}</td>
-                </tr>`).join('')}
+                  <td style="text-align:center;color:var(--gris2)">${sinCargar}</td>
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>
