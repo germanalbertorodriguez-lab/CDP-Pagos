@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.24 — 2026-03-06 12:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.26 — 2026-03-07 12:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -428,6 +428,59 @@
   .verde .stat-card-num   { color: var(--verde); }
   .rojo .stat-card-num    { color: var(--rojo); }
   .amarillo .stat-card-num{ color: var(--amarillo); }
+
+  /* ── Panel Resumen Compacto (3 col, para captura WhatsApp) ── */
+  .resumen-compact {
+    background: white;
+    border-radius: 14px;
+    padding: 14px 12px 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    margin-bottom: 16px;
+  }
+  .resumen-compact-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .resumen-compact-title {
+    font-size: 0.88rem; font-weight: 800; color: var(--azul1);
+  }
+  .resumen-compact-mes {
+    background: var(--azul1); color: white;
+    font-size: 0.66rem; font-weight: 700;
+    padding: 3px 11px; border-radius: 20px; letter-spacing: 0.05em;
+  }
+  .resumen-compact-catlabel {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #94a3b8;
+    padding: 5px 2px 3px; border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 5px; margin-top: 4px;
+  }
+  .resumen-compact-catlabel:first-of-type { margin-top: 0; }
+  .resumen-compact-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px;
+  }
+  .rc-badge {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 5px 4px 4px; border-radius: 9px; gap: 2px; text-align: center;
+  }
+  .rc-badge-nombre {
+    font-size: 0.59rem; font-weight: 700; color: #1e293b;
+    line-height: 1.2; word-break: break-word;
+  }
+  .rc-badge-pct {
+    font-size: 0.72rem; font-weight: 900;
+  }
+  .rc-badge.rc-r  { background: #fff0f0; } .rc-badge.rc-r  .rc-badge-pct { color: #b91c1c; }
+  .rc-badge.rc-am { background: #fffbe8; } .rc-badge.rc-am .rc-badge-pct { color: #92400e; }
+  .rc-badge.rc-v  { background: #f0fdf4; } .rc-badge.rc-v  .rc-badge-pct { color: #15803d; }
+  .resumen-compact-legend {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.58rem; color: #94a3b8;
+  }
+  .rc-legend-item { display: flex; align-items: center; gap: 3px; }
+  .rc-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
   /* Loading */
   .loading {
@@ -1617,6 +1670,43 @@ async function renderAdmin() {
           <div class="stat-card-label">🚫 Sancionados activos</div>
         </div>` : ''}
       </div>
+      ${(() => {
+        // ── Panel compacto 3 col para captura WhatsApp ──────────────
+        function rcBadge(nombre, pct) {
+          const cls = pct < 25 ? 'rc-r' : pct < 70 ? 'rc-am' : 'rc-v';
+          return `<div class="rc-badge ${cls}">
+            <div class="rc-badge-nombre">${nombre}</div>
+            <div class="rc-badge-pct">${pct}%</div>
+          </div>`;
+        }
+        const libres  = (porEquipo||[]).filter(e => (e.cat||'').toLowerCase().includes('libre'));
+        const senior  = (porEquipo||[]).filter(e => (e.cat||'').toLowerCase().includes('senior'));
+        const otros   = (porEquipo||[]).filter(e => !libres.includes(e) && !senior.includes(e));
+        function renderCat(label, arr) {
+          if (!arr.length) return '';
+          const badges = arr.map(e => {
+            const cargados = e.aprobados + e.pendientes + e.rechazados;
+            const pct = e.total > 0 ? Math.round(cargados / e.total * 100) : 0;
+            return rcBadge(e.nombre, pct);
+          }).join('');
+          return `<div class="resumen-compact-catlabel">${label}</div>
+                  <div class="resumen-compact-grid">${badges}</div>`;
+        }
+        return `<div class="resumen-compact">
+          <div class="resumen-compact-header">
+            <div class="resumen-compact-title">⚽ Resumen de pagos</div>
+            <div class="resumen-compact-mes">${APP.filtroMes.toUpperCase()}</div>
+          </div>
+          ${renderCat('⬜ Libres', libres)}
+          ${renderCat('🔵 Senior', senior)}
+          ${renderCat('📋 Otros', otros)}
+          <div class="resumen-compact-legend">
+            <div class="rc-legend-item"><div class="rc-dot" style="background:#ef4444"></div><span>&lt;25% bajo</span></div>
+            <div class="rc-legend-item"><div class="rc-dot" style="background:#f59e0b"></div><span>25–69% medio</span></div>
+            <div class="rc-legend-item"><div class="rc-dot" style="background:#22c55e"></div><span>≥70% ok</span></div>
+          </div>
+        </div>`;
+      })()}
       <div class="card">
         <div class="card-title">⚽ Resumen por equipo — ${APP.filtroMes}</div>
         <div class="mes-selector" style="margin-bottom:14px">
@@ -3175,7 +3265,17 @@ function abrirVentanaPlanilla(data, partido) {
       // CAMBIO 5: tags al final del nombre
       const tagMas = j.mas35 ? `<span class="tag-mas">${labelMas}</span>` : '';
       const tagIC  = j.ic    ? `<span class="tag-ic">IC</span>` : '';
-      const estadoTxt = hab ? '&#10003; Habilitado' : `&#10007; ${j.estado}`;
+      // Múltiples motivos: splittear por ' / ' y mostrar cada uno en línea separada
+      let estadoTxt;
+      if (hab) {
+        estadoTxt = '&#10003; Habilitado';
+      } else {
+        const motivos = j.estado.split(' / ');
+        estadoTxt = motivos.map(m => {
+          const icono = m.includes('Deportiva') ? '🟡' : m.includes('Medica') ? '🏥' : '💰';
+          return `<span style="display:block;white-space:nowrap">${icono} ${m}</span>`;
+        }).join('');
+      }
       return `
         <tr>
           <td class="col-nro">${String(i+1).padStart(2,'0')}</td>
