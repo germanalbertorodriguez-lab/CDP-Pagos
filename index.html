@@ -4240,8 +4240,8 @@ async function renderFormularioPasivo(cnt) {
             <label>Nuevo tipo de socio *</label>
             <select id="pasivo-tipo-nuevo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
               <option value="">— Seleccioná —</option>
-              <option value="Activo">Activo (profesional con título)</option>
-              <option value="Pasivo">Pasivo (solo cuota social)</option>
+              <option value="Activo">Activo</option>
+              <option value="Pasivo">Pasivo</option>
               <option value="Colaborador">Colaborador</option>
             </select>
           </div>
@@ -4376,7 +4376,18 @@ function onSelectJugadorForm(prefix) {
   document.getElementById(prefix + '-nombre').value = opt.dataset.nombre || '';
   document.getElementById(prefix + '-dni').value    = opt.dataset.dni    || '';
   const tipoActualEl = document.getElementById(prefix + '-tipo-actual');
-  if (tipoActualEl) tipoActualEl.value = opt.dataset.tipo || '—';
+  if (tipoActualEl) {
+    const tipoActual = opt.dataset.tipo || '';
+    tipoActualEl.value = tipoActual || '—';
+    // Deshabilitar en el selector "nuevo tipo" la opción que ya tiene
+    const selNuevo = document.getElementById(prefix + '-tipo-nuevo');
+    if (selNuevo) {
+      Array.from(selNuevo.options).forEach(o => {
+        o.disabled = (o.value && o.value.toLowerCase() === tipoActual.toLowerCase());
+      });
+      selNuevo.value = ''; // reset selección
+    }
+  }
 }
 
 async function renderEstudiosMedicosDelegado(cnt) {
