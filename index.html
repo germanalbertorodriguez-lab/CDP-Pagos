@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 21:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.30 — 2026-03-10 19:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -288,6 +288,8 @@
   .btn-rechazar:hover { background: #fecaca; }
   .btn-revocar   { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
   .btn-revocar:hover { background: #e2e8f0; color: #1e293b; }
+  .btn-anular    { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .btn-anular:hover { background: #ffedd5; color: #9a3412; }
   .btn-actions   { display: flex; gap: 6px; }
 
   /* Obs tooltip */
@@ -1564,7 +1566,11 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
         </div>`;
     } else {
       estadoHtml = `<span class="estado-badge estado-pendiente">⏳ Pendiente</span>`;
-      accionHtml = `<button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>`;
+      accionHtml = `
+        <div class="btn-actions">
+          <button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>
+          <button class="btn-sm btn-anular" onclick="anularComprobanteDelegado('${comp.id}','${jugador.nombre.replace(/'/g,"\\'")}','${mes}')">🗑 Anular</button>
+        </div>`;
     }
   }
 
@@ -1614,6 +1620,25 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
       <td>${obsHtml}</td>
       <td>${accionHtml}</td>
     </tr>`;
+}
+
+async function anularComprobanteDelegado(compId, jugadorNombre, mes) {
+  const ok = confirm(`¿Anular el comprobante de ${jugadorNombre} (${mes})?\n\nEl comprobante quedará cancelado y podrás cargar uno nuevo.`);
+  if (!ok) return;
+  try {
+    const res = await api('anularComprobante', { id: compId });
+    if (!res.ok) { alert('Error: ' + res.msg); return; }
+    showToast('Comprobante anulado. Ya podés cargar uno nuevo.', 'success');
+    // Refrescar datos
+    const data = await api('getDelegadoInit', { equipoId: APP.equipo.id });
+    if (data.ok) {
+      APP.comprobantes = data.comprobantes || [];
+      APP.jugadores    = data.jugadores    || [];
+    }
+    renderMisComprobantes(document.getElementById('main-content'));
+  } catch(e) {
+    alert('Error al anular: ' + e.message);
+  }
 }
 
 function renderHistorial(cnt) {
@@ -2675,6 +2700,8 @@ async function renderHabilitaciones() {
     const data = await api('getHabilitaciones', { equipoId: APP.equipo.id });
     if (!data.ok) throw new Error(data.msg);
     const { jugadores, mesActual, mesesRequeridos, mesesMostrar } = data;
+    // Guardar para uso de enviarEstadoWA
+    APP._habilitacionesCache = { jugadores, mesActual };
     const habLabelMas = getLabelMas(APP.equipo.cat);
 
     const habilitados = jugadores.filter(j => j.estado === 'Habilitado').length;
@@ -2707,7 +2734,13 @@ async function renderHabilitaciones() {
     cnt.innerHTML = `
       <div class="equipo-header">
         <div>
-          <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
+            <button onclick="enviarEstadoWA()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:#25d366;color:white;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(37,211,102,0.35);transition:background 0.15s" onmouseover="this.style.background='#1ebe5d'" onmouseout="this.style.background='#25d366'">
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2C8.268 2 2 8.268 2 16c0 2.492.669 4.83 1.836 6.845L2 30l7.363-1.81A13.94 13.94 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm0 25.5a11.44 11.44 0 01-5.836-1.598l-.418-.248-4.37 1.073 1.106-4.248-.272-.435A11.46 11.46 0 014.5 16C4.5 9.649 9.649 4.5 16 4.5S27.5 9.649 27.5 16 22.351 27.5 16 27.5zm6.29-8.418c-.345-.172-2.04-1.006-2.356-1.12-.316-.115-.546-.172-.776.172s-.89 1.12-1.09 1.35c-.2.23-.4.258-.745.086-.345-.172-1.456-.537-2.773-1.71-1.025-.913-1.716-2.04-1.917-2.385-.2-.345-.021-.53.15-.702.155-.154.345-.4.517-.6.172-.2.23-.344.345-.574.115-.23.057-.43-.029-.602-.086-.172-.776-1.87-1.063-2.562-.28-.672-.565-.58-.776-.59l-.661-.011c-.23 0-.602.086-.917.43s-1.205 1.178-1.205 2.873 1.234 3.332 1.406 3.562c.172.23 2.428 3.707 5.882 5.196.823.355 1.464.567 1.965.726.826.263 1.578.226 2.172.137.663-.099 2.04-.834 2.328-1.638.287-.804.287-1.493.2-1.638-.086-.144-.316-.23-.661-.402z"/></svg>
+              Enviar estado del equipo
+            </button>
+          </div>
           <div class="equipo-cat">
             Ref. mes: <strong>${mesActual}</strong>
             ${!mesEnCursoExigido ? ` · <span style="color:#059669;font-size:0.82rem">En plazo de gracia hasta el 10 del mes</span>` : ` · <span style="color:#dc2626;font-size:0.82rem">Pago del mes exigido (día ${diaHoy})</span>`}
@@ -2798,6 +2831,109 @@ async function renderHabilitaciones() {
   } catch(e) {
     cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WHATSAPP — ESTADO DEL EQUIPO (delegado)
+// ══════════════════════════════════════════════════════════════════
+function enviarEstadoWA() {
+  const cache = APP._habilitacionesCache;
+  if (!cache || !cache.jugadores) {
+    alert('Primero cargá la vista de Habilitaciones.');
+    return;
+  }
+  const { jugadores, mesActual } = cache;
+  const equipo = APP.equipo.nombre;
+
+  const habilitados   = jugadores.filter(j => j.estado === 'Habilitado');
+  const iAdmin        = jugadores.filter(j => j.estado === 'I. Administrativa');
+  const iMedica       = jugadores.filter(j => j.estado === 'I. Medica' || j.estado === 'I. Médica');
+  const iDeportiva    = jugadores.filter(j => j.estado === 'I. Deportiva');
+  const sinComp       = jugadores.filter(j => {
+    const pago = j.pagos && j.pagos[mesActual];
+    return !pago || pago === 'Sin cargar';
+  });
+
+  const labelMas = getLabelMas(APP.equipo.cat);
+  const mayoresHab = habilitados.filter(j => j.mas35);
+
+  let msg = '';
+  msg += `📋 *Estado del equipo — ${equipo}*\n`;
+  msg += `📅 Mes de referencia: *${mesActual}*\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+  msg += `✅ *Habilitados:* ${habilitados.length}\n`;
+  if (mayoresHab.length > 0) {
+    msg += `   👴 *Mayores habilitados:* ${mayoresHab.length}\n`;
+  }
+  if (iDeportiva.length > 0) {
+    msg += `🚫 *Inhabilitados deportivos:* ${iDeportiva.length}\n`;
+    iDeportiva.forEach(j => { msg += `   • ${j.nombre}\n`; });
+  }
+  if (iMedica.length > 0) {
+    msg += `🏥 *Inhabilitados médicos:* ${iMedica.length}\n`;
+  }
+  if (iAdmin.length > 0) {
+    msg += `💰 *Inhabilitados administrativos:* ${iAdmin.length}\n`;
+  }
+  if (sinComp.length > 0) {
+    msg += `\n⚠️ *Sin comprobante de ${mesActual}:* ${sinComp.length}\n`;
+    sinComp.forEach(j => { msg += `   • ${j.nombre}\n`; });
+  } else {
+    msg += `\n✔️ *Todos los jugadores tienen comprobante cargado para ${mesActual}*\n`;
+  }
+  msg += `\n_Enviado desde el sistema de Pagos CDP_`;
+
+  // Mostrar modal preview antes de abrir WA
+  const telefono = APP.equipo.telefono || '';
+  const waUrl = 'https://web.whatsapp.com/send?' + (telefono ? 'phone=' + telefono + '&' : '') + 'text=' + encodeURIComponent(msg);
+
+  // Crear modal de preview
+  let modalEl = document.getElementById('modal-wa-preview');
+  if (!modalEl) {
+    modalEl = document.createElement('div');
+    modalEl.id = 'modal-wa-preview';
+    modalEl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modalEl);
+  }
+  // Convertir *texto* a <b>texto</b> para preview visual
+  const msgHtml = msg
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*(.*?)\*/g, '<b>$1</b>')
+    .replace(/_(.*?)_/g, '<i>$1</i>')
+    .replace(/\n/g, '<br>');
+
+  modalEl.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.25);overflow:hidden">
+      <div style="background:#25d366;padding:16px 20px;display:flex;align-items:center;gap:10px">
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="white"><path d="M16 2C8.268 2 2 8.268 2 16c0 2.492.669 4.83 1.836 6.845L2 30l7.363-1.81A13.94 13.94 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm0 25.5a11.44 11.44 0 01-5.836-1.598l-.418-.248-4.37 1.073 1.106-4.248-.272-.435A11.46 11.46 0 014.5 16C4.5 9.649 9.649 4.5 16 4.5S27.5 9.649 27.5 16 22.351 27.5 16 27.5zm6.29-8.418c-.345-.172-2.04-1.006-2.356-1.12-.316-.115-.546-.172-.776.172s-.89 1.12-1.09 1.35c-.2.23-.4.258-.745.086-.345-.172-1.456-.537-2.773-1.71-1.025-.913-1.716-2.04-1.917-2.385-.2-.345-.021-.53.15-.702.155-.154.345-.4.517-.6.172-.2.23-.344.345-.574.115-.23.057-.43-.029-.602-.086-.172-.776-1.87-1.063-2.562-.28-.672-.565-.58-.776-.59l-.661-.011c-.23 0-.602.086-.917.43s-1.205 1.178-1.205 2.873 1.234 3.332 1.406 3.562c.172.23 2.428 3.707 5.882 5.196.823.355 1.464.567 1.965.726.826.263 1.578.226 2.172.137.663-.099 2.04-.834 2.328-1.638.287-.804.287-1.493.2-1.638-.086-.144-.316-.23-.661-.402z"/></svg>
+        <span style="color:white;font-weight:700;font-size:1rem">Vista previa del mensaje</span>
+      </div>
+      <div style="padding:16px 20px">
+        ${telefono
+          ? `<div style="margin-bottom:10px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:0.82rem;color:#166534">
+               📱 Se enviará a tu número: <strong>+${telefono}</strong>
+             </div>`
+          : `<div style="margin-bottom:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:0.82rem;color:#854d0e">
+               ⚠️ No tenés teléfono configurado en tu equipo. Se abrirá WA Web para que elijas el destinatario.
+             </div>`
+        }
+        <div style="background:#dcfce7;border-radius:12px;padding:14px 16px;font-size:0.82rem;line-height:1.6;color:#0f172a;max-height:320px;overflow-y:auto;font-family:'Sora',sans-serif;border:1px solid #bbf7d0">
+          ${msgHtml}
+        </div>
+      </div>
+      <div style="padding:12px 20px 18px;display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="document.getElementById('modal-wa-preview').style.display='none'"
+          style="padding:9px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-family:'Sora',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer">
+          Cancelar
+        </button>
+        <button onclick="window.open('${waUrl}','_blank');document.getElementById('modal-wa-preview').style.display='none'"
+          style="padding:9px 18px;border-radius:8px;border:none;background:#25d366;color:white;font-family:'Sora',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="white"><path d="M16 2C8.268 2 2 8.268 2 16c0 2.492.669 4.83 1.836 6.845L2 30l7.363-1.81A13.94 13.94 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm0 25.5a11.44 11.44 0 01-5.836-1.598l-.418-.248-4.37 1.073 1.106-4.248-.272-.435A11.46 11.46 0 014.5 16C4.5 9.649 9.649 4.5 16 4.5S27.5 9.649 27.5 16 22.351 27.5 16 27.5zm6.29-8.418c-.345-.172-2.04-1.006-2.356-1.12-.316-.115-.546-.172-.776.172s-.89 1.12-1.09 1.35c-.2.23-.4.258-.745.086-.345-.172-1.456-.537-2.773-1.71-1.025-.913-1.716-2.04-1.917-2.385-.2-.345-.021-.53.15-.702.155-.154.345-.4.517-.6.172-.2.23-.344.345-.574.115-.23.057-.43-.029-.602-.086-.172-.776-1.87-1.063-2.562-.28-.672-.565-.58-.776-.59l-.661-.011c-.23 0-.602.086-.917.43s-1.205 1.178-1.205 2.873 1.234 3.332 1.406 3.562c.172.23 2.428 3.707 5.882 5.196.823.355 1.464.567 1.965.726.826.263 1.578.226 2.172.137.663-.099 2.04-.834 2.328-1.638.287-.804.287-1.493.2-1.638-.086-.144-.316-.23-.661-.402z"/></svg>
+          Abrir WhatsApp
+        </button>
+      </div>
+    </div>`;
+  modalEl.style.display = 'flex';
 }
 
 // ══════════════════════════════════════════════════════════════════
