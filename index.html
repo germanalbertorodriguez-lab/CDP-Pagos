@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.34 — 2026-03-11 15:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.35 — 2026-03-11 16:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3865,15 +3865,15 @@ function renderTarjetaSolicitud(s, esPendiente) {
           </span>
           ${s.estado !== 'Aprobada' ? `
             <button class="btn-sm btn-aprobar" onclick="resolverSolicitud('${s.id}','Aprobada','${(s.tipoSolicitud||'Alta')}')">✅ Aprobar</button>
-            <button class="btn-sm" style="background:#0ea5e9;color:white" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Observada')">📝 Observar</button>
-            <button class="btn-sm btn-rechazar" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Rechazada')">❌ Rechazar</button>
+            <button class="btn-sm" style="background:#0ea5e9;color:white" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Observada','${s.tipoSolicitud||"Alta"}')">📝 Observar</button>
+            <button class="btn-sm btn-rechazar" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Rechazada','${s.tipoSolicitud||"Alta"}')">❌ Rechazar</button>
           ` : ''}
         </div>
       </div>
     </div>`;
 }
 
-async function resolverSolicitud(id, decision, tipoSolicitud) {
+async function resolverSolicitud(id, decision, tipoSolicitud, obs) {
   const tipo = tipoSolicitud || 'Alta';
   if (decision === 'Aprobada') {
     const msgs = {
@@ -3885,7 +3885,7 @@ async function resolverSolicitud(id, decision, tipoSolicitud) {
     if (!confirm(msgs[tipo] || msgs['Alta'])) return;
   }
   try {
-    const data = await api('resolverSolicitudAlta', { id, decision, obs: '' });
+    const data = await api('resolverSolicitudAlta', { id, decision, obs: obs || '' });
     if (data.ok) {
       showToast(data.msg, 'success');
       renderSolicitudesAlta();
@@ -3893,8 +3893,8 @@ async function resolverSolicitud(id, decision, tipoSolicitud) {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-function abrirModalObservacion(solicitudId, nombre, decision) {
-  APP._solicitudPendiente = { id: solicitudId, decision };
+function abrirModalObservacion(solicitudId, nombre, decision, tipoSolicitud) {
+  APP._solicitudPendiente = { id: solicitudId, decision, tipoSolicitud: tipoSolicitud || 'Alta' };
   document.getElementById('obs-sol-titulo').textContent =
     decision === 'Rechazada' ? `❌ Rechazar solicitud — ${nombre}` : `📝 Observar solicitud — ${nombre}`;
   document.getElementById('obs-sol-texto').value = '';
@@ -3906,10 +3906,10 @@ function abrirModalObservacion(solicitudId, nombre, decision) {
 async function confirmarObservacion() {
   const obs = document.getElementById('obs-sol-texto').value.trim();
   if (!obs) { showToast('Ingresá la observación', 'error'); return; }
-  const { id, decision } = APP._solicitudPendiente || {};
+  const { id, decision, tipoSolicitud } = APP._solicitudPendiente || {};
   if (!id) return;
   cerrarModal('modal-obs-solicitud');
-  await resolverSolicitud(id, decision, obs);
+  await resolverSolicitud(id, decision, tipoSolicitud, obs);
 }
 
 // ══════════════════════════════════════════════════════════════════
