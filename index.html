@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.35 — 2026-03-11 16:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.36 — 2026-03-11 17:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1837,12 +1837,18 @@ async function renderTodosComprobantes() {
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando comprobantes...</div>';
 
   try {
-    const data = await api('getAllComprobantes', {
-      mes: APP.filtroMes,
-      estado: APP.filtroEstado,
-      equipoId: APP.filtroEquipo
-    });
+    const [data, dataJug] = await Promise.all([
+      api('getAllComprobantes', {
+        mes: APP.filtroMes,
+        estado: APP.filtroEstado,
+        equipoId: APP.filtroEquipo
+      }),
+      api('getJugadoresAdmin', {}),
+    ]);
     if (!data.ok) throw new Error(data.msg);
+    // Mapa jugadorId → tipoSocio para mostrar en tabla
+    APP.jugTipoSocioMap = {};
+    if (dataJug.ok) dataJug.jugadores.forEach(j => { APP.jugTipoSocioMap[String(j.id)] = j.tipoSocio || 'Activo'; });
     APP.comprobantes = data.comprobantes;
     renderListaAdmin(cnt);
   } catch(e) {
@@ -1879,12 +1885,18 @@ function renderListaAdmin(cnt) {
         ? '<div class="empty"><div class="empty-icon">📋</div>No hay comprobantes con esos filtros.</div>'
         : `<div class="tabla-wrapper">
           <table>
-            <thead><tr><th>Equipo</th><th>Jugador</th><th>Mes</th><th>Fecha</th><th>Estado</th><th>Observación</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Equipo</th><th>Jugador</th><th>Tipo</th><th>Mes</th><th>Fecha</th><th>Estado</th><th>Observación</th><th>Acciones</th></tr></thead>
             <tbody>
-              ${pagina.map(c=>`
+              ${pagina.map(c=>{
+                const tipoSocio = (APP.jugTipoSocioMap||{})[String(c.jugadorId)] || '';
+                const tipoBadge = tipoSocio && tipoSocio.toLowerCase() !== 'activo'
+                  ? `<span style="font-size:0.7rem;padding:1px 7px;border-radius:10px;font-weight:700;background:${tipoSocio.toLowerCase().includes('col')?'#ede9fe':'#fef9c3'};color:${tipoSocio.toLowerCase().includes('col')?'#6d28d9':'#854d0e'}">${formatTipoSocio(tipoSocio)}</span>`
+                  : `<span style="font-size:0.7rem;padding:1px 7px;border-radius:10px;font-weight:600;background:#f1f5f9;color:#64748b">Activo</span>`;
+                return `
                 <tr>
                   <td style="font-size:0.78rem;color:var(--gris3)">${c.equipoId.replace(/_/g,' ')}</td>
                   <td class="jugador-nombre">${c.jugadorNombre}</td>
+                  <td>${tipoBadge}</td>
                   <td>${c.mes}</td>
                   <td style="font-size:0.75rem;color:var(--gris3)">${formatFecha(c.fecha)}</td>
                   <td>${estadoBadge(c.estado)}</td>
@@ -1897,7 +1909,7 @@ function renderListaAdmin(cnt) {
                       ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}','${c.equipoId}')">❌</button>` : ''}
                     </div>
                   </td>
-                </tr>`).join('')}
+                </tr>`;}).join('')}
             </tbody>
           </table>
         </div>
@@ -3004,6 +3016,12 @@ async function renderGestionJugadores(equipoFiltro = '') {
             <option value="">Todos los equipos</option>
             ${opEq}
           </select>
+          <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--gris1);border-radius:8px;background:var(--blanco);overflow:hidden;flex:1;min-width:180px;max-width:320px">
+            <span style="padding:0 10px;color:var(--gris3);font-size:1rem;line-height:1">🔍</span>
+            <input id="buscar-jugador" type="text" placeholder="Buscar jugador..." autocomplete="off"
+              style="border:none;outline:none;padding:8px 8px 8px 0;font-family:inherit;font-size:0.88rem;width:100%;background:transparent"
+              oninput="filtrarJugadoresGestion(this.value)">
+          </div>
           <button class="btn-sm btn-aprobar" onclick="abrirModalAltaJugador()">➕ Alta jugador</button>
           <button class="btn-sm btn-ver" onclick="renderHistorialBajas()">📋 Historial de bajas</button>
         </div>
@@ -3175,6 +3193,27 @@ async function renderGestionJugadores(equipoFiltro = '') {
   } catch(e) {
     cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
   }
+}
+
+function filtrarJugadoresGestion(texto) {
+  const q = texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Mostrar/ocultar filas de todas las tablas de jugadores
+  document.querySelectorAll('#main-content tbody tr').forEach(tr => {
+    const celda = tr.querySelector('.jugador-nombre');
+    if (!celda) return;
+    const nombre = celda.textContent.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // También buscar en DNI (segunda celda)
+    const celdas = tr.querySelectorAll('td');
+    const dni = celdas[2] ? celdas[2].textContent.trim() : '';
+    const coincide = !q || nombre.includes(q) || dni.includes(q);
+    tr.style.display = coincide ? '' : 'none';
+  });
+  // Mostrar/ocultar secciones de equipo que quedaron sin filas visibles
+  document.querySelectorAll('#main-content > div > div[style*="margin-bottom:24px"]').forEach(seccion => {
+    const filas = seccion.querySelectorAll('tbody tr');
+    const algunaVisible = Array.from(filas).some(tr => tr.style.display !== 'none');
+    seccion.style.display = algunaVisible ? '' : 'none';
+  });
 }
 
 function abrirModalAltaJugador() {
@@ -3855,8 +3894,19 @@ function renderTarjetaSolicitud(s, esPendiente) {
             🏟️ ${s.nombreEquipo} · DNI: ${s.dni}${s.fechaNac ? ' · Nac: '+s.fechaNac : ''}
           </div>
           ${extraHtml}
-          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}</div>
-          ${s.obsAdmin ? `<div style="font-size:0.8rem;color:var(--rojo);margin-top:4px;padding:6px 10px;background:#fff1f2;border-radius:6px;border-left:3px solid #dc2626">📝 <strong>Observación:</strong> ${s.obsAdmin}</div>` : ''}
+          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}${s.fechaResolucion ? ` · Resuelto: ${s.fechaResolucion}` : ''}</div>
+          ${s.obsAdmin ? (() => {
+              const isRechazada = s.estado === 'Rechazada';
+              const isObservada = s.estado === 'Observada';
+              const borderColor = isRechazada ? '#dc2626' : isObservada ? '#0369a1' : '#6d28d9';
+              const bgColor     = isRechazada ? '#fff1f2' : isObservada ? '#f0f9ff' : '#f5f3ff';
+              const textColor   = isRechazada ? '#b91c1c' : isObservada ? '#0369a1' : '#6d28d9';
+              const titulo      = isRechazada ? '❌ Motivo de rechazo' : isObservada ? '📝 Aclaración solicitada al delegado' : '📋 Nota del administrador';
+              return `<div style="margin-top:8px;padding:8px 12px;background:${bgColor};border-left:3px solid ${borderColor};border-radius:0 8px 8px 0">
+                <div style="font-size:0.72rem;font-weight:700;color:${textColor};margin-bottom:3px">${titulo}:</div>
+                <div style="font-size:0.85rem;color:#1a1a1a;line-height:1.5">${s.obsAdmin}</div>
+              </div>`;
+            })() : ''}
           ${s.driveFolder ? `<div style="margin-top:6px"><a href="${s.driveFolder}" target="_blank" style="font-size:0.78rem;color:var(--azul2);text-decoration:none">📁 Ver archivos en Drive</a></div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -4729,7 +4779,18 @@ async function renderMisSolicitudes(cnt) {
                     <div style="font-weight:700">${s.nombre}</div>
                     <div style="font-size:0.78rem;color:var(--gris3)">DNI: ${s.dni} · ${s.fechaSolicitud}</div>
                     ${infoExtra ? `<div style="font-size:0.78rem;color:var(--gris3)">${infoExtra}</div>` : ''}
-                    ${s.obsAdmin ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--rojo);padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
+                    ${s.obsAdmin ? (() => {
+                        const isRechazada = s.estado === 'Rechazada';
+                        const borderColor = isRechazada ? '#dc2626' : '#0369a1';
+                        const bgColor     = isRechazada ? '#fff1f2' : '#f0f9ff';
+                        const textColor   = isRechazada ? '#b91c1c' : '#0369a1';
+                        const icono       = isRechazada ? '❌' : '📝';
+                        const titulo      = isRechazada ? 'Motivo de rechazo' : 'Aclaración solicitada';
+                        return `<div style="margin-top:8px;padding:8px 12px;background:${bgColor};border-left:3px solid ${borderColor};border-radius:0 8px 8px 0">
+                          <div style="font-size:0.72rem;font-weight:700;color:${textColor};margin-bottom:2px">${icono} ${titulo}:</div>
+                          <div style="font-size:0.82rem;color:#1a1a1a">${s.obsAdmin}</div>
+                        </div>`;
+                      })() : ''}
                   </div>
                   <span style="padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.8rem;background:${estadoColor}20;color:${estadoColor}">${s.estado}</span>
                 </div>
