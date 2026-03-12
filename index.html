@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.36 — 2026-03-11 17:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.37 — 2026-03-11 17:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4267,12 +4267,16 @@ function renderFormularioSolicitudAlta(cnt) {
           📎 Archivos adjuntos
         </div>
         
-        ${['ficha-medica', 'ficha-inscripcion', 'titulo', 'extra'].map((tipo, i) => {
+        ${['ficha-medica', 'ficha-inscripcion', 'titulo', 'extra', 'extra2', 'extra3', 'extra4', 'extra5'].map((tipo, i) => {
           const labels = {
             'ficha-medica':     { label:'Ficha Médica (con estudios, ergo y electro) *', icon:'🏥' },
             'ficha-inscripcion':{ label:'Ficha de Inscripción (con foto 4x4) *',          icon:'📝' },
             'titulo':           { label:'Título / Certificado en trámite + analítico *',  icon:'🎓' },
             'extra':            { label:'Documento adicional (libreta, otro)',             icon:'📁' },
+            'extra2':           { label:'Documento adicional 2',                          icon:'📁' },
+            'extra3':           { label:'Documento adicional 3',                          icon:'📁' },
+            'extra4':           { label:'Documento adicional 4',                          icon:'📁' },
+            'extra5':           { label:'Documento adicional 5',                          icon:'📁' },
           };
           const l = labels[tipo];
           return `
