@@ -3723,8 +3723,10 @@ function abrirVentanaPlanilla(data, partido) {
     return jugadores.map((j, i) => {
       const hab = j.estado === 'Habilitado';
       // CAMBIO 5: tags al final del nombre
-      const tagMas = j.mas35 ? `<span class="tag-mas">${labelMas}</span>` : '';
-      const tagIC  = j.ic    ? `<span class="tag-ic">IC</span>` : '';
+      const tagMas   = j.mas35 ? `<span class="tag-mas">${labelMas}</span>` : '';
+      const tagIC    = j.ic    ? `<span class="tag-ic">IC</span>` : '';
+      const tagColab = (j.tipoSocio && String(j.tipoSocio).toUpperCase().includes('COL'))
+                       ? `<span class="tag-colab">COLABORADOR</span>` : '';
       // Múltiples motivos: splittear por ' / ' y mostrar cada uno en línea separada
       let estadoTxt;
       if (hab) {
@@ -3739,7 +3741,7 @@ function abrirVentanaPlanilla(data, partido) {
       return `
         <tr>
           <td class="col-nro">${String(i+1).padStart(2,'0')}</td>
-          <td class="col-nombre"><strong>${j.nombre}</strong>${tagMas}${tagIC}</td>
+          <td class="col-nombre"><strong>${j.nombre}</strong>${tagMas}${tagIC}${tagColab}</td>
           <td class="col-estado ${hab ? 'hab' : 'inhab'}">${estadoTxt}</td>
           <td class="col-ch"></td>
           <td class="col-firma"></td>
@@ -3935,6 +3937,8 @@ function abrirVentanaPlanilla(data, partido) {
   .tag-mas { display:inline-block; background:#e0e7ff; color:#3730a3;
     font-size:7.5px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; }
   .tag-ic  { display:inline-block; background:#fef3c7; color:#92400e;
+    font-size:7.5px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:3px; vertical-align:middle; }
+  .tag-colab { display:inline-block; background:#dcfce7; color:#15803d;
     font-size:7.5px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:3px; vertical-align:middle; }
 
   /* CAMBIO 6: camiseta y firma destacadas */
