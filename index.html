@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.39 — 2026-03-12 00:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.40 — 2026-03-13 00:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1137,6 +1137,10 @@ function getLabelMasById(equipoId) {
 async function api(accion, datos = {}) {
   // SEGURIDAD: Incluir token de sesión en todas las llamadas
   if (APP.token) datos.token = APP.token;
+  // MODO MASTER: el admin usa su propio token pero simula ser delegado de un equipo
+  if (APP.rol === 'delegado_master' && APP.equipo && !datos.equipoId) {
+    datos.equipoId = APP.equipo.id;
+  }
   const params = new URLSearchParams({ accion, ...datos });
   console.log('[CDP] API →', accion, APP.token ? '(con token)' : '(sin token)');
   const res = await fetch(CONFIG.SCRIPT_URL + '?' + params.toString());
@@ -1847,7 +1851,7 @@ async function renderPanelHabilitacionesAdmin() {
     const data = await api('getResumenHabilitaciones');
     if (!data.ok) { placeholder.remove(); return; }
 
-    const { totales, listas } = data;
+    const { totales, listas, totalIC, totalReal } = data;
     const total = totales.habilitados + totales.iPago + totales.iEstudio + totales.iDeportiva + totales.iAdmin;
 
     function renderLista(arr, color) {
@@ -1896,8 +1900,9 @@ async function renderPanelHabilitacionesAdmin() {
             <div style="font-size:0.78rem;color:#6b7280;font-weight:600">⚙️ Admin</div>
           </div>` : ''}
           <div style="flex:1;min-width:110px;background:#f0f9ff;border-radius:10px;padding:14px 16px;text-align:center">
-            <div style="font-size:1.6rem;font-weight:800;color:#0369a1">${total}</div>
+            <div style="font-size:1.6rem;font-weight:800;color:#0369a1">${totalReal !== undefined ? totalReal : total}</div>
             <div style="font-size:0.78rem;color:#075985;font-weight:600">Total jugadores</div>
+            ${totalIC > 0 ? `<div style="font-size:0.68rem;color:#0369a1;margin-top:3px;opacity:0.75">${totalIC} IC = ${Math.floor(totalIC/2)} duplicados</div>` : ''}
           </div>
         </div>
 
@@ -2043,11 +2048,15 @@ async function cargarEquipoAdmin(equipoId) {
     const notasMap = (dn.ok && dn.notas) ? dn.notas : {};
     // Cargar notas admin para todos los jugadores del equipo
     div.innerHTML = `
-      <div class="mes-selector" style="margin:14px 0">
+      <div class="mes-selector" style="margin:14px 0;display:flex;align-items:center;flex-wrap:wrap;gap:10px">
         <label>Mes:</label>
         <select id="mes-equipo-admin" onchange="actualizarTablaEquipoAdmin()" style="padding:8px 14px;border:1.5px solid var(--gris1);border-radius:8px;font-family:'Sora',sans-serif">
           ${CONFIG.MESES.map(m=>`<option ${m===APP.filtroMes?'selected':''}>${m}</option>`).join('')}
         </select>
+        <button onclick="verComoDelegado('${equipoId}')"
+          style="margin-left:auto;padding:8px 18px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer">
+          👁 Ver como delegado
+        </button>
       </div>
       <div id="tabla-equipo-admin"></div>`;
 
@@ -2226,6 +2235,103 @@ async function ejecutarAprobacionMasiva(equipoId, jugadorIds, mes) {
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODO MASTER — Admin ve la app como si fuera un delegado
+// ══════════════════════════════════════════════════════════════════
+function verComoDelegado(equipoId) {
+  const eq = (EQUIPOS_FALLBACK || []).find(e =>
+    e.id === equipoId ||
+    String(e.id).replace(/[\s_]+/g,'_').toLowerCase() === String(equipoId).replace(/[\s_]+/g,'_').toLowerCase()
+  );
+  const nombreEquipo = eq ? eq.nombre : equipoId;
+  const cat          = eq ? (eq.cat || '') : '';
+
+  // Guardar estado admin para poder volver
+  APP._modoMaster = {
+    token:      APP.token,
+    rol:        APP.rol,
+    nombrePila: APP.nombrePila,
+    equipo:     APP.equipo,
+  };
+
+  // Simular sesión de delegado (en frontend; el token de admin sigue siendo válido)
+  APP.rol    = 'delegado_master';
+  APP.equipo = { id: equipoId, nombre: nombreEquipo, cat };
+  APP.nombrePila = nombreEquipo;
+
+  // Banner de aviso
+  if (!document.getElementById('banner-master')) {
+    const header = document.querySelector('.header');
+    const banner = document.createElement('div');
+    banner.id = 'banner-master';
+    banner.style.cssText = [
+      'background:linear-gradient(135deg,#7c3aed,#6d28d9)',
+      'color:white','text-align:center','padding:7px 16px',
+      'font-size:0.78rem','font-weight:700',
+      'display:flex','align-items:center','justify-content:center','gap:14px',
+      'position:sticky','top:60px','z-index:99','box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+    ].join(';');
+    banner.innerHTML =
+      `👁 MODO MASTER — Viendo como delegado: <strong>${nombreEquipo}</strong>` +
+      ` &nbsp;|&nbsp; <button onclick="salirModoMaster()" style="` +
+        `background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);` +
+        `color:white;padding:3px 12px;border-radius:6px;font-family:inherit;` +
+        `font-size:0.75rem;cursor:pointer;font-weight:700">✕ Volver al panel admin</button>`;
+    if (header) header.insertAdjacentElement('afterend', banner);
+  }
+
+  // Actualizar header
+  const headerEquipo = document.querySelector('.header-equipo');
+  if (headerEquipo) headerEquipo.textContent = nombreEquipo + (cat ? ' · ' + cat : '');
+  const badgeEl = document.querySelector('.badge-role');
+  if (badgeEl) {
+    badgeEl.textContent = 'MASTER';
+    badgeEl.style.cssText = 'padding:4px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:rgba(167,139,250,0.3);color:#ddd6fe';
+  }
+
+  // Cambiar nav a tabs de delegado
+  const tabs = document.getElementById('nav-tabs');
+  if (tabs) {
+    tabs.innerHTML = `
+      <button class="nav-tab active" onclick="navTo('mis-comprobantes',this)">📋 Cargar Comprobantes</button>
+      <button class="nav-tab" onclick="navTo('habilitaciones',this)">✅ Habilitaciones</button>
+      <button class="nav-tab" onclick="navTo('historial',this)">📂 Historial</button>
+      <button class="nav-tab" onclick="navTo('salud-delegado',this)">🏥 Salud</button>
+      <button class="nav-tab" onclick="navTo('gestion-delegado',this)">⚙️ Gestión</button>`;
+  }
+
+  // Renderizar vista delegado
+  renderDelegado('mis-comprobantes');
+}
+
+function salirModoMaster() {
+  if (!APP._modoMaster) return;
+
+  // Restaurar estado admin
+  APP.rol        = APP._modoMaster.rol;
+  APP.token      = APP._modoMaster.token;
+  APP.equipo     = APP._modoMaster.equipo;
+  APP.nombrePila = APP._modoMaster.nombrePila;
+  APP._modoMaster = null;
+
+  // Quitar banner
+  const banner = document.getElementById('banner-master');
+  if (banner) banner.remove();
+
+  // Restaurar header-equipo y badge
+  const headerEquipo = document.querySelector('.header-equipo');
+  if (headerEquipo) headerEquipo.textContent = 'Administrador';
+  const badgeEl = document.querySelector('.badge-role');
+  if (badgeEl) {
+    badgeEl.textContent = 'ADMIN';
+    badgeEl.className   = 'badge-role badge-admin';
+    badgeEl.removeAttribute('style');
+  }
+
+  // Restaurar tabs y vista admin
+  iniciarApp();
 }
 
 // ══════════════════════════════════════════════════════════════════
