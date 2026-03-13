@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.41 — 2026-03-13 00:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.41 — 2026-03-13 00:00 ARG (fix login) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1069,11 +1069,18 @@ const CONFIG = {
 // ══════════════════════════════════════════════════════════════════
 function guardarSesionLocal() {
   try {
+    // NUNCA persistir el modo master — guardar siempre como 'admin'
+    const rolParaGuardar = APP.rol === 'delegado_master' ? 'admin' : APP.rol;
+    const equipoParaGuardar = APP.rol === 'delegado_master'
+      ? (APP._modoMaster ? APP._modoMaster.equipo : null)
+      : APP.equipo;
     sessionStorage.setItem('cdp_session', JSON.stringify({
-      rol: APP.rol,
+      rol: rolParaGuardar,
       token: APP.token,
-      equipo: APP.equipo,
-      nombrePila: APP.nombrePila,
+      equipo: equipoParaGuardar,
+      nombrePila: APP.rol === 'delegado_master'
+        ? (APP._modoMaster ? APP._modoMaster.nombrePila : '')
+        : APP.nombrePila,
       ts: Date.now(),
     }));
   } catch(e) { console.warn('[CDP] No se pudo guardar sesión local:', e); }
@@ -1231,7 +1238,8 @@ function manejarSesionExpirada() {
   APP.token = null;
   APP.rol = null;
   APP.equipo = null;
-  // Volver a pantalla de login
+  // Ocultar splash y app, mostrar login
+  document.getElementById('splash-screen').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-pin').value = '';
@@ -1391,17 +1399,20 @@ function iniciarApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
+  // En modo master, usar el rol real (admin) para construir la UI
+  const rolEfectivo = (APP.rol === 'delegado_master') ? 'admin' : APP.rol;
+
   // Header
   document.getElementById('header-subtitulo').textContent =
-    APP.rol === 'admin' ? 'Panel de Administración' : APP.equipo.nombre;
+    rolEfectivo === 'admin' ? 'Panel de Administración' : (APP.equipo ? APP.equipo.nombre : '');
   const badge = document.getElementById('badge-role');
-  const rolLabel = APP.rol === 'admin' ? 'Admin' : 'Delegado';
+  const rolLabel = rolEfectivo === 'admin' ? 'Admin' : 'Delegado';
   badge.textContent = APP.nombrePila ? APP.nombrePila : rolLabel;
-  badge.className = 'badge-role ' + (APP.rol === 'admin' ? 'badge-admin' : 'badge-delegado');
+  badge.className = 'badge-role ' + (rolEfectivo === 'admin' ? 'badge-admin' : 'badge-delegado');
 
   // Tabs
   const tabs = document.getElementById('nav-tabs');
-  if (APP.rol === 'delegado') {
+  if (rolEfectivo === 'delegado') {
     tabs.innerHTML = `
       <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Cargar Comprobantes</button>
       <button class="nav-tab" onclick="navTo('habilitaciones', this)">✅ Habilitaciones</button>
@@ -5063,10 +5074,12 @@ async function renderMisSolicitudes(cnt) {
                   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                     <span style="padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.8rem;background:${estadoColor}20;color:${estadoColor}">${s.estado}</span>
                     ${(s.estado === 'Rechazada' || s.estado === 'Observada') ? `
-                      <button onclick="abrirModalRespuesta('${s.id}','${(s.obsAdmin||'').replace(/'/g,'\\\\\\'').replace(/\n/g,' ')}')"
+                      <button onclick="abrirModalRespuesta('${s.id}', this)"
+                        data-obs="${(s.obsAdmin||'').replace(/"/g, '&quot;') }"
                         style="background:linear-gradient(135deg,#0369a1,#0284c7);color:white;border:none;padding:6px 14px;border-radius:8px;font-family:'Sora',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer">
                         💬 Responder
                       </button>` : ''}
+                  </div>
                   </div>
                 </div>
               </div>`;
@@ -5080,7 +5093,9 @@ async function renderMisSolicitudes(cnt) {
 // ══════════════════════════════════════════════════════════════════
 // RESPUESTA DELEGADO A RECHAZO/OBSERVACIÓN
 // ══════════════════════════════════════════════════════════════════
-function abrirModalRespuesta(solicitudId, obsAdmin) {
+function abrirModalRespuesta(solicitudId, btn) {
+  // La obs del admin se lee del data-obs attribute para evitar problemas de escaping
+  const obsAdmin = btn ? btn.getAttribute('data-obs') || '' : '';
   APP._respuestaPendiente = { id: solicitudId };
   // Limpiar campos
   document.getElementById('resp-delegado-texto').value = '';
@@ -5811,40 +5826,21 @@ cargarEquiposSelect();
     return;
   }
 
-  // Hay sesión → mantener splash mientras valida
+  // Hay sesión guardada → restaurar estado y arrancar directamente.
+  // Si el token expiró, la primera llamada a api() llamará a manejarSesionExpirada().
   try {
-    APP.token = sesion.token;
-    APP.rol = sesion.rol;
-    APP.equipo = sesion.equipo;
+    APP.token     = sesion.token;
+    APP.rol       = (sesion.rol === 'delegado_master') ? 'admin' : sesion.rol;
+    APP.equipo    = sesion.equipo || null;
     APP.nombrePila = sesion.nombrePila || '';
-
-    if (sesion.rol === 'admin') {
-      const check = await api('getParametros');
-      if (check.ok) {
-        console.log('[CDP] Sesión admin restaurada desde sessionStorage');
-        splash.style.display = 'none';
-        iniciarApp();
-        return;
-      }
-    } else if (sesion.rol === 'delegado' && sesion.equipo) {
-      const check = await api('getJugadores', { equipoId: sesion.equipo.id });
-      if (check.ok) {
-        console.log('[CDP] Sesión delegado restaurada desde sessionStorage');
-        splash.style.display = 'none';
-        iniciarApp();
-        return;
-      }
-    }
+    splash.style.display = 'none';
+    iniciarApp();
   } catch(e) {
-    console.warn('[CDP] No se pudo restaurar la sesión:', e.message);
+    console.warn('[CDP] Error restaurando sesión:', e.message);
+    limpiarSesionLocal();
+    splash.style.display = 'none';
+    login.style.display = 'flex';
   }
-  // Si llegamos acá, el token ya no es válido
-  limpiarSesionLocal();
-  APP.token = null;
-  APP.rol = null;
-  APP.equipo = null;
-  splash.style.display = 'none';
-  login.style.display = 'flex';
 })();
 
 // Drag & drop en upload zone
