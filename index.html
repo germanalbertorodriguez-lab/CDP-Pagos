@@ -3722,27 +3722,37 @@ function abrirVentanaPlanilla(data, partido) {
     }
     return jugadores.map((j, i) => {
       const hab = j.estado === 'Habilitado';
-      // CAMBIO 5: tags al final del nombre
+      const esColab = j.tipoSocio && String(j.tipoSocio).toUpperCase().includes('COL');
+
+      // Tags: +35/+50 e IC en mayúscula
       const tagMas   = j.mas35 ? `<span class="tag-mas">${labelMas}</span>` : '';
       const tagIC    = j.ic    ? `<span class="tag-ic">IC</span>` : '';
-      const tagColab = (j.tipoSocio && String(j.tipoSocio).toUpperCase().includes('COL'))
-                       ? `<span class="tag-colab">COLABORADOR</span>` : '';
-      // Múltiples motivos: splittear por ' / ' y mostrar cada uno en línea separada
+      const tagColab = esColab ? `<span class="tag-colab">COLAB.</span>` : '';
+
+      // Estado: traducir a código corto para la planilla
       let estadoTxt;
       if (hab) {
-        estadoTxt = '&#10003; Habilitado';
+        estadoTxt = 'HABILITADO';
       } else {
+        // Convertir cada motivo al código corto
         const motivos = j.estado.split(' / ');
         estadoTxt = motivos.map(m => {
-          const icono = m.includes('Deportiva') ? '🟡' : m.includes('Medica') ? '🏥' : '💰';
-          return `<span style="display:block;white-space:nowrap">${icono} ${m}</span>`;
+          let codigo = 'ADMIN';
+          if (m.includes('Deportiva'))   codigo = 'DEP';
+          else if (m.includes('Medica')) codigo = 'MED';
+          else if (m.includes('Administrativa')) codigo = 'ADMIN';
+          return `<span style="display:block">NO HAB (${codigo})</span>`;
         }).join('');
       }
+
+      // Fila inhabilitada: fondo negro letras blancas
+      const trClass = hab ? '' : (esColab ? ' class="colab-row"' : ' class="inhab-row"');
+
       return `
-        <tr${!hab ? ' class="inhab-row"' : ''}>
+        <tr${trClass}>
           <td class="col-nro">${String(i+1).padStart(2,'0')}</td>
-          <td class="col-nombre"><strong>${j.nombre}</strong>${tagMas}${tagIC}${tagColab}</td>
-          <td class="col-estado ${hab ? 'hab' : 'inhab'}">${estadoTxt}</td>
+          <td class="col-nombre">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
+          <td class="col-estado ${hab ? 'hab' : 'inhab'}">${hab ? '' : '<strong>✕✕ </strong>'}${estadoTxt}</td>
           <td class="col-ch"></td>
           <td class="col-firma"></td>
           <td class="col-gol"></td>
@@ -3752,13 +3762,11 @@ function abrirVentanaPlanilla(data, partido) {
     }).join('');
   }
 
-  const hoy = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
-
   function paginaEquipo(equipo, jugadores, esLocal) {
     return `
     <div class="page">
 
-      <!-- ENCABEZADO -->
+      <!-- HEADER: solo logo, club, torneo -->
       <div class="header-banda">
         <div class="header-logo-area">
           <img src="${LOGO}" class="logo-img" alt="CDP">
@@ -3768,42 +3776,37 @@ function abrirVentanaPlanilla(data, partido) {
           </div>
         </div>
         <div class="header-torneo">Torneo ${partido.torneo || 'CDP'}</div>
-        <div class="header-meta">
-          Fecha <strong>${partido.fechaNro || ''}</strong><br>
-          Generada: ${hoy}
-        </div>
       </div>
 
-      <!-- INFO PARTIDO -->
+      <!-- INFO PARTIDO rediseñada -->
       <div class="partido-info">
-        <div class="pi-item">
-          <div class="pi-label">Categoría</div>
-          <div class="pi-valor">${partido.categoria || '—'}</div>
-        </div>
-        <div class="pi-item">
-          <div class="pi-label">Fecha</div>
-          <div class="fecha-nro-badge">${partido.fechaNro || ''}</div>
+        <div class="pi-cat-fecha">
+          <div class="pi-label">CATEGORÍA</div>
+          <div class="pi-cat">${partido.categoria || '—'}</div>
+          <div class="pi-fecha-badge">${partido.fechaNro || ''}</div>
         </div>
         <div class="partido-equipos">
-          <span class="eq-${esLocal ? 'local' : 'visitante2'}">${esLocal ? partido.local : partido.visitante}</span>
+          <span class="eq-principal">${esLocal ? partido.local : partido.visitante}</span>
           <span class="eq-vs">vs</span>
-          <span class="eq-${esLocal ? 'visitante' : 'local2'}">${esLocal ? partido.visitante : partido.local}</span>
+          <span class="eq-secundario">${esLocal ? partido.visitante : partido.local}</span>
         </div>
-        <div class="pi-item">
-          <div class="pi-label">Fecha</div>
-          <div class="pi-valor">${partido.fecha || '—'}</div>
-        </div>
-        <div class="pi-item">
-          <div class="pi-label">Hora</div>
-          <div class="pi-valor">${partido.hora || '—'}</div>
-        </div>
-        <div class="pi-item">
-          <div class="pi-label">Cancha</div>
-          <div class="pi-valor">${partido.cancha || '—'}</div>
+        <div class="pi-datos">
+          <div class="pi-dato-item">
+            <div class="pi-label">FECHA</div>
+            <div class="pi-dato-val">${partido.fecha || '—'}</div>
+          </div>
+          <div class="pi-dato-item">
+            <div class="pi-label">HORA</div>
+            <div class="pi-dato-val">${partido.hora || '—'}</div>
+          </div>
+          <div class="pi-dato-item">
+            <div class="pi-label">CANCHA</div>
+            <div class="pi-dato-val">${partido.cancha || '—'}</div>
+          </div>
         </div>
       </div>
 
-      <!-- TÍTULO EQUIPO: CAMBIO 3 sin badge mes -->
+      <!-- TÍTULO EQUIPO -->
       <div class="equipo-titulo">${equipo}</div>
 
       <table>
@@ -3822,31 +3825,29 @@ function abrirVentanaPlanilla(data, partido) {
         <tbody>${tablaJugadores(jugadores)}</tbody>
       </table>
 
-      <!-- PIE: CAMBIO 7 y 8 -->
+      <!-- PIE -->
       <div class="pie">
-        <div class="pie-campo" style="flex:1.4">
-          <label>Árbitro</label>
+        <div class="pie-campo" style="flex:1.5">
+          <div class="pie-label">Árbitro</div>
           <div class="pie-linea"></div>
-          <span>Firma y aclaración</span>
         </div>
         <div class="pie-campo" style="flex:2">
-          <label>Asistentes</label>
+          <div class="pie-label">Asistentes</div>
           <div class="pie-linea"></div>
-          <span>Firma y aclaración</span>
         </div>
         <div class="resultado-box">
-          <label>Resultado Final</label>
+          <div class="resultado-label">Resultado Final</div>
           <div class="resultado-marcador">___ — ___</div>
         </div>
       </div>
 
       <div class="pie" style="margin-top:10px">
         <div class="pie-campo">
-          <label>Firma responsable ${partido.local}</label>
+          <div class="pie-label">Firma ${partido.local}</div>
           <div class="pie-linea"></div>
         </div>
         <div class="pie-campo">
-          <label>Firma responsable ${partido.visitante}</label>
+          <div class="pie-label">Firma ${partido.visitante}</div>
           <div class="pie-linea"></div>
         </div>
       </div>
@@ -3861,109 +3862,111 @@ function abrirVentanaPlanilla(data, partido) {
 <title>Planilla — ${partido.local} vs ${partido.visitante}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 14px; color: #000; background: #fff; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #000; background: #fff; }
 
-  /* Una hoja por equipo, sin espacio en blanco: height:auto */
   .page { width: 210mm; height: auto; padding: 7mm 8mm 5mm; page-break-after: always; }
   .page:last-child { page-break-after: auto; }
 
-  /* ENCABEZADO */
+  /* HEADER: solo logo + club + torneo, todo más grande */
   .header-banda {
     background: #1a3a5c;
-    border-radius: 6px; padding: 7px 13px;
+    border-radius: 6px; padding: 10px 18px;
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 6px; gap: 8px;
+    margin-bottom: 7px;
   }
-  .header-logo-area { display: flex; align-items: center; gap: 9px; }
-  .logo-img { width: 42px; height: 42px; object-fit: contain; }
+  .header-logo-area { display: flex; align-items: center; gap: 12px; }
+  .logo-img { width: 50px; height: 50px; object-fit: contain; }
   .header-club-text { color: white; line-height: 1.2; }
-  .nombre-club { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
-  .sub-club { font-size: 7px; opacity: 0.75; text-transform: uppercase; letter-spacing: 1px; }
-  .header-torneo { text-align: center; color: white; font-size: 13px; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 2px; flex: 1; }
-  .header-meta { text-align: right; color: rgba(255,255,255,0.85); font-size: 9px; line-height: 1.5; }
-  .header-meta strong { color: white; font-size: 10px; }
+  .nombre-club { font-size: 18px; font-weight: 900; letter-spacing: 0.5px; }
+  .sub-club { font-size: 9px; opacity: 0.75; text-transform: uppercase; letter-spacing: 1.5px; }
+  .header-torneo { text-align: center; color: white; font-size: 20px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 3px; flex: 1; }
 
-  /* INFO PARTIDO */
+  /* INFO PARTIDO rediseñada */
   .partido-info {
     background: #f0f4f8; border: 1.5px solid #aaa; border-radius: 6px;
-    padding: 6px 12px; display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 7px; gap: 6px;
+    padding: 8px 14px; display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 7px; gap: 8px;
   }
-  .pi-item { text-align: center; }
-  .pi-label { font-size: 8px; text-transform: uppercase; color: #444;
-    letter-spacing: 0.5px; font-weight: 700; margin-bottom: 1px; }
-  .pi-valor { font-size: 16px; font-weight: 900; color: #000; }
-  .fecha-nro-badge { background: #1a3a5c; color: white; font-size: 14px;
-    font-weight: 900; padding: 3px 10px; border-radius: 5px; letter-spacing: 1px; }
-  .partido-equipos { text-align: center; flex: 1; line-height: 1.25; }
-  .eq-local   { font-size: 19px; font-weight: 900; color: #000; display: block; }
-  .eq-local2  { font-size: 14px; font-weight: 700; color: #333; display: block; }
-  .eq-visitante  { font-size: 14px; font-weight: 700; color: #333; display: block; }
-  .eq-visitante2 { font-size: 19px; font-weight: 900; color: #000; display: block; }
-  .eq-vs { font-size: 9px; font-weight: 400; color: #666; display: block;
-    margin: 1px 0; text-transform: uppercase; letter-spacing: 1px; }
+  .pi-cat-fecha { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .pi-label { font-size: 8px; text-transform: uppercase; color: #555;
+    letter-spacing: 0.8px; font-weight: 700; }
+  .pi-cat { font-size: 18px; font-weight: 900; color: #000; line-height: 1; }
+  .pi-fecha-badge { background: #1a3a5c; color: white; font-size: 16px;
+    font-weight: 900; padding: 3px 12px; border-radius: 5px; letter-spacing: 1px; margin-top: 3px; display: inline-block; }
+
+  /* Equipo principal MUY GRANDE */
+  .partido-equipos { text-align: center; flex: 1; line-height: 1.2; }
+  .eq-principal  { font-size: 22px; font-weight: 900; color: #000; display: block; }
+  .eq-vs         { font-size: 9px; color: #666; display: block; margin: 2px 0; text-transform: uppercase; letter-spacing: 1px; }
+  .eq-secundario { font-size: 15px; font-weight: 700; color: #333; display: block; }
+
+  /* Fecha Hora Cancha MÁS GRANDES */
+  .pi-datos { display: flex; gap: 16px; align-items: center; }
+  .pi-dato-item { text-align: center; }
+  .pi-dato-val { font-size: 17px; font-weight: 900; color: #000; line-height: 1.1; }
 
   /* TÍTULO EQUIPO */
   .equipo-titulo {
-    background: #1a3a5c;
-    color: white; padding: 6px 12px; font-weight: 900; font-size: 14px;
-    border-radius: 5px 5px 0 0; text-transform: uppercase; letter-spacing: 0.8px;
+    background: #1a3a5c; color: white; padding: 7px 13px;
+    font-weight: 900; font-size: 14px; border-radius: 5px 5px 0 0;
+    text-transform: uppercase; letter-spacing: 1px;
   }
 
-  /* TABLA — tipografía máxima que entra en A4 */
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  /* TABLA */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead tr { background: #ddd; }
-  th { padding: 5px 6px; text-align: left; font-weight: 700; font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.3px; border: 0.5px solid #aaa; color: #000; }
+  th { padding: 5px 6px; text-align: left; font-weight: 700; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.5px; border: 0.5px solid #aaa; color: #000; }
   td { padding: 5px 6px; border: 0.5px solid #ccc; vertical-align: middle; line-height: 1.3; }
-  tr:nth-child(even) td { background: #f4f4f4; }
+  tr:nth-child(even) td { background: #f0f0f0; }
 
-  /* INHABILITADOS — fondo y texto con buen contraste B&N */
-  tr.inhab-row td { background: #d8d8d6 !important; color: #555 !important; }
-  tr.inhab-row strong { color: #555 !important; font-weight: 700 !important; }
-  tr.inhab-row .col-estado { font-style: italic; font-size: 11px; }
-  tr:nth-child(even).inhab-row td { background: #d0d0ce !important; }
+  /* INHABILITADOS: fondo negro, letras blancas */
+  tr.inhab-row td { background: #111 !important; color: #fff !important; border-color: #333 !important; }
+  tr.inhab-row .col-estado { font-weight: 700; }
 
-  .col-nro   { width: 24px; text-align: center; color: #555; font-size: 10px; }
-  .col-nombre { min-width: 150px; font-size: 15px; font-weight: 700; }
-  .col-estado { width: 106px; font-size: 11px; }
+  /* COLABORADOR: fondo gris oscuro, letras blancas */
+  tr.colab-row td { background: #444 !important; color: #fff !important; border-color: #555 !important; }
+
+  .col-nro   { width: 24px; text-align: center; font-size: 10px; }
+  .col-nombre { min-width: 150px; font-size: 14px; font-weight: 700; }
+  .col-estado { width: 116px; font-size: 11px; font-weight: 700; }
   .col-gol  { width: 24px; text-align: center; }
   .col-am   { width: 32px; text-align: center; }
   .col-roja { width: 24px; text-align: center; }
-  /* B&N: habilitado = negro negrita, inhabilitado = cursiva gris */
   .hab   { color: #000; font-weight: 700; }
-  .inhab { color: #555; font-weight: 700; font-style: italic; }
+  .inhab { color: #fff; font-weight: 700; }
 
-  /* TAGS */
-  .tag-mas { display:inline-block; background:#ccc; color:#000;
+  /* TAGS — visibles sobre fondo negro también */
+  .tag-mas { display:inline-block; background:#888; color:#fff;
     font-size:8px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; }
-  .tag-ic  { display:inline-block; background:#999; color:#fff;
+  .tag-ic  { display:inline-block; background:#555; color:#fff;
     font-size:8px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:3px; vertical-align:middle; }
-  .tag-colab { display:inline-block; background:#555; color:#fff;
+  .tag-colab { display:inline-block; background:#888; color:#fff;
     font-size:8px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:3px; vertical-align:middle; }
 
   /* CAMISETA Y FIRMA */
   th.col-ch-h, th.col-firma-h {
     background: #333; color: white; text-align: center; border: 1px solid #000 !important; }
-  td.col-ch { width:36px; background:#e8e8e8 !important; border:1px solid #999 !important; text-align:center; }
+  td.col-ch   { width:36px; background:#e8e8e8 !important; border:1px solid #999 !important; text-align:center; }
   td.col-firma { width:74px; background:#e8e8e8 !important; border:1px solid #999 !important; }
   tr:nth-child(even) td.col-ch,
   tr:nth-child(even) td.col-firma { background:#ddd !important; }
   tr.inhab-row td.col-ch,
-  tr.inhab-row td.col-firma { background:#d0d0ce !important; border-color:#bbb !important; }
+  tr.inhab-row td.col-firma { background:#222 !important; border-color:#444 !important; }
+  tr.colab-row td.col-ch,
+  tr.colab-row td.col-firma { background:#555 !important; border-color:#666 !important; }
 
-  /* PIE */
-  .pie { margin-top:9px; border-top:1.5px solid #888; padding-top:8px;
+  /* PIE — árbitro y asistentes MÁS GRANDES, sin "firma y aclaración" */
+  .pie { margin-top:10px; border-top:1.5px solid #888; padding-top:9px;
     display:flex; justify-content:space-between; gap:14px; }
   .pie-campo { flex:1; }
-  .pie-campo label { font-size:9px; text-transform:uppercase; color:#333;
-    letter-spacing:0.3px; display:block; margin-bottom:16px; font-weight:700; }
-  .pie-linea { border-bottom:1px solid #666; height:1px; margin-bottom:3px; }
-  .pie-campo span { font-size:8px; color:#666; }
+  .pie-label { font-size:11px; text-transform:uppercase; color:#000;
+    letter-spacing:0.5px; display:block; margin-bottom:20px; font-weight:900; }
+  .pie-linea { border-bottom:1.5px solid #555; height:1px; }
   .resultado-box { background:#eee; border:1.5px solid #888; border-radius:5px;
-    padding:6px 10px; text-align:center; flex:1.2; }
-  .resultado-box label { font-size:9px; text-transform:uppercase; color:#333;
+    padding:6px 10px; text-align:center; flex:1.1; }
+  .resultado-label { font-size:9px; text-transform:uppercase; color:#333;
     font-weight:700; letter-spacing:0.5px; display:block; margin-bottom:5px; }
   .resultado-marcador { font-size:22px; font-weight:900; color:#000; letter-spacing:6px; }
 
