@@ -3897,17 +3897,9 @@ function abrirVentanaPlanilla(data, partido) {
     color-adjust: exact !important;
   }
 
-  body { font-family: Arial, sans-serif; font-size: 14px; color: #000; background: #fff; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #000; background: #fff; }
 
-  /* 1cm de margen exacto en todos los lados */
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    height: 297mm;
-    padding: 10mm;
-    page-break-after: always;
-    overflow: hidden;
-  }
+  .page { width: 210mm; height: auto; padding: 10mm 10mm 8mm; page-break-after: always; }
   .page:last-child { page-break-after: auto; }
 
   /* HEADER */
@@ -3919,7 +3911,7 @@ function abrirVentanaPlanilla(data, partido) {
   }
   .header-logo-area { display: flex; align-items: center; gap: 10px; }
   .logo-img { width: 44px; height: 44px; object-fit: contain; }
-  .header-club-text { color: #fff; line-height: 1.15; }
+  .header-club-text { color: #fff; line-height: 1.2; }
   .nombre-club { font-size: 17px; font-weight: 900; color: #fff; }
   .sub-club { font-size: 8px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1.5px; }
   .header-torneo { text-align: center; color: #fff; font-size: 22px; font-weight: 900;
@@ -3940,7 +3932,7 @@ function abrirVentanaPlanilla(data, partido) {
     font-size: 16px; font-weight: 900; padding: 2px 10px;
     border-radius: 3px; letter-spacing: 1px; margin-top: 2px; display: inline-block;
   }
-  .partido-equipos { text-align: center; flex: 1; line-height: 1.15; }
+  .partido-equipos { text-align: center; flex: 1; line-height: 1.2; }
   .eq-principal  { font-size: 23px; font-weight: 900; color: #000; display: block; }
   .eq-vs         { font-size: 8px; color: #555; display: block; margin: 1px 0; text-transform: uppercase; letter-spacing: 1px; }
   .eq-secundario { font-size: 16px; font-weight: 700; color: #000; display: block; }
@@ -3955,26 +3947,24 @@ function abrirVentanaPlanilla(data, partido) {
     border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: 1px;
   }
 
-  /* TABLA */
-  table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+  /* TABLA — sin table-layout fijo para que los nombres respiren */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead tr { background: #ddd !important; }
   th { padding: 4px 5px; text-align: left; font-weight: 900; font-size: 9px;
-    text-transform: uppercase; letter-spacing: 0.4px; border: 1px solid #888; color: #000;
-    overflow: hidden; }
+    text-transform: uppercase; letter-spacing: 0.4px; border: 1px solid #888; color: #000; }
   th.col-ch-h, th.col-firma-h {
     background: #555 !important; color: #fff !important;
     text-align: center; border: 1px solid #333 !important; }
-  td { padding: 3px 5px; border: 0.5px solid #bbb; vertical-align: middle;
-    line-height: 1.25; overflow: hidden; }
+  td { padding: 4px 6px; border: 0.5px solid #bbb; vertical-align: middle; line-height: 1.25; }
 
-  /* Columnas — anchos fijos para que no wrappeen */
-  .col-nro    { width: 26px; text-align: center; font-size: 10px; font-weight: 700; }
-  .col-nombre { width: auto; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .col-estado { width: 120px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .col-ch     { width: 40px; text-align: center; }
-  .col-firma  { width: 78px; }
+  /* Columnas con anchos razonables — nombres toman el espacio que necesitan */
+  .col-nro    { width: 28px; text-align: center; font-size: 10px; font-weight: 700; }
+  .col-nombre { font-size: 15px; font-weight: 700; }
+  .col-estado { width: 120px; font-size: 12px; font-weight: 700; }
+  .col-ch     { width: 44px; text-align: center; }
+  .col-firma  { width: 60px; }
   .col-gol    { width: 26px; text-align: center; }
-  .col-am     { width: 36px; text-align: center; }
+  .col-am     { width: 34px; text-align: center; }
   .col-roja   { width: 26px; text-align: center; }
   .hab        { color: #000; font-weight: 700; }
 
@@ -3986,7 +3976,7 @@ function abrirVentanaPlanilla(data, partido) {
     letter-spacing: 0.5px; display: block; margin-bottom: 20px; font-weight: 900; }
   .pie-linea { border-bottom: 1.5px solid #000; height: 1px; }
   .resultado-box { background: #eee !important; border: 2px solid #000;
-    border-radius: 4px; padding: 5px 10px; text-align: center; flex: 1.1; }
+    border-radius: 4px; padding: 5px 8px; text-align: center; flex: 1.1; }
   .resultado-label { font-size: 9px; text-transform: uppercase; color: #000;
     font-weight: 900; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
   .resultado-marcador { font-size: 22px; font-weight: 900; color: #000; letter-spacing: 6px; }
@@ -4005,7 +3995,7 @@ function abrirVentanaPlanilla(data, partido) {
   @media print {
     body { margin:0; padding-top:0; }
     .no-print { display:none !important; }
-    .page { padding:10mm; width:210mm; height:297mm; overflow:hidden; }
+    .page { padding:10mm 10mm 8mm; height:auto; }
   }
 </style>
 </head>
