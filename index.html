@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.60 — 2026-06-01 ARG (+ panel Bajas Automáticas con listado + reincorporación) -->
+<!-- PAGOS CDP — Frontend v5.61 — 2026-08-19 21:55 ARG (+ precios dinámicos leídos del backend en tarjetas de recaudación) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1718,7 +1718,6 @@ function iniciarApp() {
       <button class="nav-tab" onclick="navTo('estudios-medicos-admin', this)">🩺 Estudios</button>
       <button class="nav-tab" onclick="navTo('salud-admin', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('ocr-admin', this)">🤖 IA Check</button>
-      <button class="nav-tab" onclick="navTo('bajas-automaticas', this)">📛 Bajas Auto</button>
       <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
     renderAdmin();
@@ -1758,8 +1757,6 @@ function navTo(vista, btn) {
     renderEstadisticasAdmin();
   } else if (vista === 'ocr-admin') {
     renderOCRAdmin();
-  } else if (vista === 'bajas-automaticas') {
-    renderBajasAutomaticas();
   }
 }
 
@@ -2153,25 +2150,25 @@ async function renderEstadisticasAdmin(mes) {
           <div class="cuota-card">
             <div class="cuota-tipo">Activo sin IC</div>
             <div class="cuota-cant">${cuotas.activoSinIC.cantidad}</div>
-            <div class="cuota-monto">$40.000 c/u</div>
+            <div class="cuota-monto">$${(cuotas.activoSinIC.precio || 40000).toLocaleString('es-AR')} c/u</div>
             <div class="cuota-subtotal">$${cuotas.activoSinIC.subtotal.toLocaleString('es-AR')}</div>
           </div>
           <div class="cuota-card ic">
             <div class="cuota-tipo">Activo con IC</div>
             <div class="cuota-cant">${cuotas.activoConIC.cantidad}</div>
-            <div class="cuota-monto">$52.000 c/u (únicos por DNI)</div>
+            <div class="cuota-monto">$${(cuotas.activoConIC.precio || 52000).toLocaleString('es-AR')} c/u (únicos por DNI)</div>
             <div class="cuota-subtotal">$${cuotas.activoConIC.subtotal.toLocaleString('es-AR')}</div>
           </div>
           <div class="cuota-card col">
             <div class="cuota-tipo">Colaborador</div>
             <div class="cuota-cant">${cuotas.colaborador.cantidad}</div>
-            <div class="cuota-monto">$16.000 c/u</div>
+            <div class="cuota-monto">$${(cuotas.colaborador.precio || 16000).toLocaleString('es-AR')} c/u</div>
             <div class="cuota-subtotal">$${cuotas.colaborador.subtotal.toLocaleString('es-AR')}</div>
           </div>
           <div class="cuota-card pasivo">
             <div class="cuota-tipo">Pasivo</div>
             <div class="cuota-cant">${cuotas.pasivo.cantidad}</div>
-            <div class="cuota-monto">$16.000 c/u</div>
+            <div class="cuota-monto">$${(cuotas.pasivo.precio || 16000).toLocaleString('es-AR')} c/u</div>
             <div class="cuota-subtotal">$${cuotas.pasivo.subtotal.toLocaleString('es-AR')}</div>
           </div>
         </div>
@@ -5777,194 +5774,6 @@ async function confirmarObservacion() {
   if (!esAprobada && !obs) { showToast('Ingresá la observación', 'error'); return; }
   cerrarModal('modal-obs-solicitud');
   await resolverSolicitud(id, decision, tipoSolicitud, obs, comentario, nombreCorregido);
-}
-
-// ══════════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════════
-// BAJAS AUTOMÁTICAS (admin) — Listado + Reincorporación
-// ══════════════════════════════════════════════════════════════════
-async function renderBajasAutomaticas() {
-  const cnt = document.getElementById('main-content');
-  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando bajas automáticas...</div>';
-
-  try {
-    const data = await api('getBajasAutomaticas');
-    if (!data.ok) throw new Error(data.msg || 'Error al cargar');
-
-    const todasLasBajas = data.bajas || [];
-    const activas = todasLasBajas.filter(b => b.estadoActual === 'Baja');
-    const reincorporados = todasLasBajas.filter(b => b.estadoActual === 'Reincorporado');
-
-    cnt.innerHTML = `
-      <div class="card" style="border-left:4px solid #dc2626">
-        <div class="card-title">📛 Sistema de Bajas Automáticas</div>
-        <p style="color:#555;font-size:0.92rem;line-height:1.6">
-          El sistema da de baja automáticamente a los jugadores que acumulan <strong>3 meses consecutivos sin pago</strong> al día 11 de cada mes. 
-          El día 1 se envía un aviso preventivo al delegado.
-          Para reincorporar a un jugador debe pagar <strong>inscripción nueva + meses adeudados</strong>.
-        </p>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card rojo">
-          <div class="stat-card-num">${activas.length}</div>
-          <div class="stat-card-label">Bajas activas</div>
-        </div>
-        <div class="stat-card verde">
-          <div class="stat-card-num">${reincorporados.length}</div>
-          <div class="stat-card-label">Reincorporados</div>
-        </div>
-        <div class="stat-card azul">
-          <div class="stat-card-num">${todasLasBajas.length}</div>
-          <div class="stat-card-label">Total histórico</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title" style="color:#b91c1c">🚫 Bajas activas (${activas.length})</div>
-        ${activas.length === 0 ? `
-          <p style="color:#16a34a;text-align:center;padding:20px;font-weight:500">
-            ✅ No hay jugadores dados de baja automáticamente en este momento.
-          </p>
-        ` : `
-          <div class="tabla-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Jugador</th>
-                  <th>DNI</th>
-                  <th>Equipo</th>
-                  <th>Meses adeudados</th>
-                  <th>Fecha baja</th>
-                  <th>Estado al baja</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${activas.map(b => `
-                  <tr>
-                    <td><strong>${b.nombreJugador}</strong></td>
-                    <td>${b.dni || '—'}</td>
-                    <td>${b.nombreEquipo}</td>
-                    <td style="color:#b91c1c">${b.mesesAdeudados}</td>
-                    <td>${b.fechaBaja}</td>
-                    <td style="font-size:0.85rem;color:#6b7280">${b.estadoAlBaja || '—'}</td>
-                    <td>
-                      <button class="btn-sm" style="background:#16a34a;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600" onclick="abrirModalReincorporar('${b.jugadorId}','${b.nombreJugador.replace(/'/g,"\\'")}','${b.nombreEquipo.replace(/'/g,"\\'")}','${b.mesesAdeudados.replace(/'/g,"\\'")}')">
-                        ↩️ Reincorporar
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `}
-      </div>
-
-      ${reincorporados.length > 0 ? `
-        <div class="card">
-          <div class="card-title" style="color:#15803d">✅ Reincorporados (${reincorporados.length})</div>
-          <div class="tabla-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Jugador</th>
-                  <th>Equipo</th>
-                  <th>Meses que debía</th>
-                  <th>Fecha baja</th>
-                  <th>Reincorporado</th>
-                  <th>Comentario</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${reincorporados.map(b => `
-                  <tr>
-                    <td><strong>${b.nombreJugador}</strong></td>
-                    <td>${b.nombreEquipo}</td>
-                    <td style="color:#6b7280">${b.mesesAdeudados}</td>
-                    <td>${b.fechaBaja}</td>
-                    <td style="color:#15803d;font-weight:600">${b.fechaReincorporacion || '—'}</td>
-                    <td style="font-size:0.85rem;color:#6b7280">${b.comentarioReincorporacion || '—'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Modal de reincorporación -->
-      <div id="modal-reincorporar" class="modal-overlay" style="display:none">
-        <div class="modal-content" style="max-width:480px">
-          <div class="modal-header">
-            <h3 style="margin:0;color:#15803d">↩️ Reincorporar jugador</h3>
-            <button class="modal-close" onclick="cerrarModal('modal-reincorporar')">×</button>
-          </div>
-          <div class="modal-body">
-            <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:14px;border-radius:0 8px 8px 0;margin-bottom:16px">
-              <div style="font-weight:700;color:#15803d;margin-bottom:6px">⚠️ Antes de reincorporar verificá:</div>
-              <ul style="margin:6px 0 0 20px;font-size:0.9rem;color:#1a1a1a;line-height:1.6">
-                <li>El jugador pagó la <strong>inscripción nueva</strong></li>
-                <li>El jugador pagó los <strong>meses adeudados</strong></li>
-              </ul>
-            </div>
-            <div style="margin-bottom:14px">
-              <div style="color:#6b7280;font-size:0.85rem;margin-bottom:4px">Jugador:</div>
-              <div id="reinc-jugador" style="font-weight:700;font-size:1.05rem"></div>
-            </div>
-            <div style="margin-bottom:14px">
-              <div style="color:#6b7280;font-size:0.85rem;margin-bottom:4px">Equipo:</div>
-              <div id="reinc-equipo"></div>
-            </div>
-            <div style="margin-bottom:14px">
-              <div style="color:#6b7280;font-size:0.85rem;margin-bottom:4px">Meses adeudados al momento de la baja:</div>
-              <div id="reinc-meses" style="color:#b91c1c"></div>
-            </div>
-            <div style="margin-bottom:14px">
-              <label style="display:block;color:#6b7280;font-size:0.85rem;margin-bottom:6px">Comentario (opcional, queda registrado):</label>
-              <textarea id="reinc-comentario" rows="3" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;resize:vertical" placeholder="Ej: pagó inscripción $X y meses Marzo, Abril, Mayo. Recibo #1234"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
-            <button onclick="cerrarModal('modal-reincorporar')" style="background:#e5e7eb;color:#1a1a1a;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600">Cancelar</button>
-            <button id="btn-confirmar-reincorporar" onclick="confirmarReincorporacion()" style="background:#16a34a;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:700">↩️ Confirmar reincorporación</button>
-          </div>
-        </div>
-      </div>
-    `;
-  } catch (e) {
-    cnt.innerHTML = `<div class="card" style="border-left:4px solid #dc2626"><div style="color:#b91c1c">Error: ${e.message}</div></div>`;
-  }
-}
-
-function abrirModalReincorporar(jugadorId, nombre, equipo, meses) {
-  APP._reincorporarJugadorId = jugadorId;
-  document.getElementById('reinc-jugador').textContent = nombre;
-  document.getElementById('reinc-equipo').textContent = equipo;
-  document.getElementById('reinc-meses').textContent = meses;
-  document.getElementById('reinc-comentario').value = '';
-  document.getElementById('modal-reincorporar').style.display = 'flex';
-}
-
-async function confirmarReincorporacion() {
-  const jugadorId = APP._reincorporarJugadorId;
-  if (!jugadorId) return;
-  const comentario = document.getElementById('reinc-comentario').value.trim();
-  const btn = document.getElementById('btn-confirmar-reincorporar');
-  btn.disabled = true;
-  btn.textContent = 'Reincorporando...';
-  try {
-    const res = await api('reincorporarJugador', { jugadorId, comentario });
-    if (!res.ok) throw new Error(res.msg || 'Error');
-    cerrarModal('modal-reincorporar');
-    showToast(res.msg, 'success');
-    renderBajasAutomaticas();
-  } catch (e) {
-    showToast('Error: ' + e.message, 'error');
-    btn.disabled = false;
-    btn.textContent = '↩️ Confirmar reincorporación';
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════
